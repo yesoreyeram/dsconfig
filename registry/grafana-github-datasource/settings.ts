@@ -5,7 +5,9 @@
  * - `src/types/config.ts` — `GitHubLicenseType`, `GitHubAuthType`, `GitHubDataSourceOptions`,
  *   `GitHubSecureJsonDataKeys`
  * - `src/views/ConfigEditor.tsx` — the configuration editor
- * - `pkg/models/settings.go` — backend `Settings` (additionally reads `jsonData.cachingEnabled`)
+ * - `pkg/models/settings.go` — backend `Settings` has a `CachingEnabled` field, but
+ *   `pkg/plugin/instance.go` unconditionally sets it to `true` after `LoadSettings` runs,
+ *   so the stored value is effectively ignored.
  */
 
 export type GitHubLicenseType = 'github-basic' | 'github-enterprise-cloud' | 'github-enterprise-server';
