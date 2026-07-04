@@ -35,26 +35,44 @@ registry/<plugin_id>/
 
 ## Step 1 — Capture the inputs (research phase)
 
-Fidelity comes from reading the real sources, never from memory:
+**Proof-driven authoring is mandatory.** Every value that ends up in `dsconfig.json` — labels,
+placeholders, tooltips, descriptions, option labels/values, section titles, help text, value
+types, defaults, validations, required markers, visibility conditions, storage keys, storage
+targets — must be traceable to a specific file, line, and commit in the upstream plugin
+repository. Fidelity comes from reading the real sources at HEAD on `main`, never from memory,
+never from a stale local checkout, and never from a cached copy in your context window.
 
-1. **Clone the plugin repository** (e.g. `github.com/grafana/<plugin_id>`) and read:
+1. **Resolve the plugin ID from upstream.** The authoritative plugin ID is the `id` field of
+   `src/plugin.json` in the upstream repository — not the repository name, not the npm package
+   name, not the Go module path. Read that file first and use its `id` verbatim as the registry
+   entry directory name and as `pluginType` in `dsconfig.json`. Also capture `name` (→ `pluginName`)
+   and `info.links[]` for the docs URL (→ `docURL`) from the same file.
+2. **Always fetch the latest `main` before reading anything.** Either:
+   - `git clone https://github.com/grafana/<repo> && cd <repo> && git checkout main && git pull`, or
+   - `git -C <existing-clone> fetch origin && git -C <existing-clone> checkout main && git -C <existing-clone> pull --ff-only`.
+
+   Record the commit SHA you researched against in the entry README so reviewers can reproduce
+   the work. If upstream moves after you author the schema, re-run the research at the new HEAD
+   and reconcile any drift before merging.
+3. **Read the real sources** (all paths relative to the upstream repo root):
+   - `src/plugin.json` — plugin ID, name, docs URL (already read in step 1).
    - the config editor component (usually `src/**/ConfigEditor.tsx`) — every label, placeholder,
-     tooltip, option, section title, conditional render, and side-effecting change handler;
-   - the frontend config types (usually `src/types/settings.ts` or `src/types.ts`);
+     tooltip, option, section title, conditional render, and side-effecting change handler.
+   - the frontend config types (usually `src/types/settings.ts` or `src/types.ts`).
    - the backend settings model (usually `pkg/models/settings.go`) and its `LoadSettings` —
-     legacy fallbacks, lenient parsing, defaulting;
+     legacy fallbacks, lenient parsing, defaulting.
    - how each setting is **consumed** (HTTP client construction, URL derivation, auth wiring) —
-     this reveals frontend-only and backend-only fields;
-   - `src/plugin.json` for the plugin ID, name, and docs URL.
-2. **Resolve external components.** Config editors compose components from libraries
+     this reveals frontend-only and backend-only fields.
+4. **Resolve external components.** Config editors compose components from libraries
    (`@grafana/ui`, `@grafana/plugin-ui`, `@grafana/experimental`, SDK field packs). Pin the exact
    versions from the plugin's `package.json`/`go.mod` and read those components' sources for their
    labels, tooltips, and the storage keys they write. Never guess what a library component renders.
-3. **Inventory every storage field** across three targets: `root` (top-level datasource settings),
+5. **Inventory every storage field** across three targets: `root` (top-level datasource settings),
    `jsonData`, and `secureJsonData`. Classify each field: editor-visible, frontend-only (written by
    the editor, never read by the backend), backend-only (no editor UI), or virtual (editor-local
-   derived state that never hits storage).
-4. **Record discrepancies** you find upstream (dead settings, misleading placeholders, typos,
+   derived state that never hits storage). For each field, note the exact source line
+   (`file:line`) where its label, placeholder, tooltip, default, and storage key are defined.
+6. **Record discrepancies** you find upstream (dead settings, misleading placeholders, typos,
    validation gaps, URL-handling quirks) — they go in the entry README, not in the schema.
 
 ## Step 2 — Author `dsconfig.json`

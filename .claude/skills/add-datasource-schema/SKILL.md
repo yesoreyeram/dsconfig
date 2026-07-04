@@ -11,13 +11,29 @@ as the worked reference example. Summary of the workflow:
 
 ## 1. Research (capture the inputs)
 
-Clone the plugin repo and read: the config editor (`src/**/ConfigEditor.tsx`), frontend config
-types, backend settings model + `LoadSettings`, and how each setting is consumed by the backend.
-Resolve every external editor component (`@grafana/ui`, `@grafana/plugin-ui`, SDK packs) at the
-exact version pinned in the plugin's `package.json` — read their sources for labels/tooltips and
-storage keys. Inventory all fields by target (root / jsonData / secureJsonData), classifying each
-as editor-visible, frontend-only, backend-only, or virtual. Record upstream discrepancies for the
-README.
+**Proof-driven authoring is mandatory.** Every value that lands in `dsconfig.json` (label,
+placeholder, tooltip, description, option label/value, section title, help text, value type,
+default, validation, required marker, visibility condition, storage key, storage target) must
+be traceable to a specific `file:line` in the upstream repo at the HEAD of `main`. No memory,
+no guessing, no cached context — read the real sources.
+
+**Plugin ID lookup**: the authoritative plugin ID is the `id` field of `src/plugin.json` in the
+upstream repo (not the repo name, npm name, or Go module path). Read it first and use it verbatim
+as the registry entry directory and as `pluginType` in `dsconfig.json`; also capture `name`
+(→ `pluginName`) and `info.links[]` (→ `docURL`).
+
+**Always fetch the latest `main` before reading anything** — `git clone` fresh or
+`git -C <clone> fetch origin && git checkout main && git pull --ff-only`. Record the researched
+commit SHA in the entry README so reviewers can reproduce the work.
+
+Then read at the pinned HEAD: `src/plugin.json`, the config editor (`src/**/ConfigEditor.tsx`),
+frontend config types, backend settings model + `LoadSettings`, and how each setting is
+consumed by the backend. Resolve every external editor component (`@grafana/ui`,
+`@grafana/plugin-ui`, SDK packs) at the exact version pinned in the plugin's `package.json` —
+read their sources for labels/tooltips and storage keys. Inventory all fields by target
+(root / jsonData / secureJsonData) with `file:line` provenance, classifying each as
+editor-visible, frontend-only, backend-only, or virtual. Record upstream discrepancies for
+the README.
 
 ## 2. dsconfig.json
 
