@@ -6,7 +6,10 @@ Declarative configuration schema for the [GitHub datasource plugin](https://gith
 | --- | --- |
 | [`dsconfig.json`](dsconfig.json) | dsconfig v1 schema — single source of truth for all config fields, groups, effects, and instructions |
 | [`config.ts`](config.ts) | TypeScript models: `RootConfig`, `JsonDataConfig`, `SecureJsonDataConfig` |
-| [`config.go`](config.go) | Go models: `RootConfig`, `JsonDataConfig`, `SecureJsonDataConfig` |
+| [`config.go`](config.go) | Go models (`RootConfig`, `JsonDataConfig`, `SecureJsonDataConfig`) plus the `LoadConfig` utility |
+| [`schema.go`](schema.go) | k8s-style SDK plugin schema: embeds `dsconfig.json`, converts it via `dsconfig.NewSDKSchema`, and defines `SettingsExamples` for each auth/connection variant |
+| [`schema_test.go`](schema_test.go) | Guards the schema bundle (secure values, jsonData spec, examples shape) and `LoadConfig` behavior |
+| [`go.mod`](go.mod) | Standalone Go module (`replace`d onto the sibling `dsconfig` module; wired into the repo `go.work`) |
 
 ## Sources researched
 
@@ -54,6 +57,37 @@ All labels, placeholders, tooltips, options, and help text were taken verbatim f
 - **`RootConfig` is a blank object**: the plugin stores nothing at the root level (`url`, `basicAuth`, etc. unused), so the root type marshals to `{}` rather than null.
 - **`SecureJsonDataConfig` is a key list**: secure values are write-only, so the secure type is just the array of secret key names (`accessToken`, `privateKey`); consumers read `secureJsonFields` to see what is configured.
 
+## SDK plugin schema and k8s-style examples (`schema.go`)
+
+`NewSchema()` assembles the `grafana-plugin-sdk-go` `pluginschema.PluginSchema` bundle (the k8s-style
+schema Grafana's datasource API server serves as `{apiVersion}.json`, `v0alpha1` today) from the
+embedded `dsconfig.json`: root fields plus a nested `jsonData` object become the OpenAPI settings
+`spec`, secure fields become `secureValues`, and virtual fields are skipped.
+
+`SettingsExamples()` provides one k8s-style example per authentication type and connection variant,
+each a full instance-settings object with the plugin configuration nested under `jsonData`
+(secure values are write-only and never appear in examples — each description says which secret to
+provide separately):
+
+| Example | Auth | Connection |
+| --- | --- | --- |
+| `personalAccessToken` | Personal Access Token | GitHub.com (Free, Pro & Team) |
+| `githubApp` | GitHub App | GitHub.com (Free, Pro & Team) |
+| `enterpriseCloud` | Personal Access Token | Enterprise Cloud (same endpoints as GitHub.com) |
+| `enterpriseServer` | Personal Access Token | Enterprise Server (`githubUrl`) |
+| `githubAppEnterpriseServer` | GitHub App | Enterprise Server (`githubUrl`) |
+| `legacyAccessTokenOnly` | Legacy: token with no auth type | GitHub.com |
+
+## `LoadConfig` utility (`config.go`)
+
+`LoadConfig(settings backend.DataSourceInstanceSettings) (Config, error)` parses a datasource
+instance's settings into a `Config` — `Root` (`RootConfig`), `JSONData` (`JsonDataConfig`),
+decrypted `Secrets` by key, and `ConfiguredSecureKeys` (which of `SecureJsonDataKeys` are present).
+It mirrors the plugin's `LoadSettings` (`pkg/models/settings.go`), including the legacy fallback that
+defaults `selectedAuthType` to `personal-access-token` when only an `accessToken` is stored, and the
+lenient string-or-number parsing of `appId`/`installationId` via `AppIdInt64()` /
+`InstallationIdInt64()`.
+
 ## Potential bugs and discrepancies found upstream
 
 1. **`githubPlan` is dead weight for the backend.** The backend decides Enterprise Server purely from `githubUrl` being non-empty (`client.go`), so a provisioned datasource with `githubPlan: "github-enterprise-server"` but no `githubUrl` silently behaves like github.com.
@@ -71,5 +105,6 @@ All labels, placeholders, tooltips, options, and help text were taken verbatim f
 
 - `dsconfig.ParseAndResolveSchemaJSON` + `Schema.Validate()` (Go validator in this repo) — passes.
 - JSON Schema validation against [`dsconfig/schema.json`](../../dsconfig/schema.json) (draft 2020-12, `additionalProperties: false`) — passes.
-- `config.go`: `go build`, `go vet`, `gofmt` — clean.
+- `go test ./...` on this module — passes (schema bundle shape, secure values, examples, `LoadConfig` incl. legacy fallback and id parsing).
+- `config.go`/`schema.go`: `go build`, `go vet`, `gofmt` — clean.
 - `config.ts`: `tsc --noEmit --strict` — clean.
