@@ -41,7 +41,7 @@ README.
 
 `settings.go` exports a **flat `Config` struct** mirroring the plugin's upstream backend `Settings`
 (`pkg/models/settings.go`) verbatim — same fields, same json tags, same custom `UnmarshalJSON` if
-upstream has one — plus a `Secrets map[SecureJsonDataKey]string`. **Only carry root-level fields
+upstream has one — plus a `DecryptedSecureJSONData map[SecureJsonDataKey]string`. **Only carry root-level fields
 (`URL`, `BasicAuth`, `User`, …) on `Config` when the plugin's backend actually reads them**; most
 datasources ignore root fields and should omit them. If included, tag them `json:"-"`. Also add
 `SecureJsonDataKey` (strict string alias) with typed constants for each secret key, enum-like

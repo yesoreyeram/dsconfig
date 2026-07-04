@@ -26,7 +26,7 @@ Each entry is a standalone Go module:
 schema-registry/<plugin_id>/
 ├── dsconfig.json    # dsconfig v1 schema — the single source of truth
 ├── settings.ts        # TypeScript models: RootConfig, JsonDataConfig, SecureJsonDataConfig
-├── settings.go        # Flat Go Config (jsonData + Secrets; root fields only if used) + LoadConfig utility
+├── settings.go        # Flat Go Config (jsonData + DecryptedSecureJSONData; root fields only if used) + LoadConfig utility
 ├── schema.go        # k8s-style SDK PluginSchema: embeds dsconfig.json + SettingsExamples
 ├── schema_test.go   # Guards the schema bundle shape and LoadConfig behavior
 ├── go.mod / go.sum  # module github.com/grafana/dsconfig/schema-registry/<plugin_id>
@@ -105,7 +105,7 @@ Validate against `dsconfig/schema.json` (`$schema` is required and must be the c
 
 - **A flat `Config` struct** that mirrors the plugin's upstream backend `Settings`
   (`pkg/models/settings.go`) **verbatim** — same fields, same json tags, same custom
-  `UnmarshalJSON` if the upstream has one. Plus a `Secrets map[SecureJsonDataKey]string` for the
+  `UnmarshalJSON` if the upstream has one. Plus a `DecryptedSecureJSONData map[SecureJsonDataKey]string` for the
   decrypted `secureJsonData`. **Only carry root-level datasource fields (`URL`, `BasicAuth`, `User`,
   etc.) on `Config` when the plugin's own backend actually reads them.** Most datasources ignore
   root fields entirely (e.g. GitHub authenticates via jsonData + secrets and never touches
@@ -119,7 +119,7 @@ Validate against `dsconfig/schema.json` (`$schema` is required and must be the c
   1. **Parse** — unmarshal `settings.JSONData` into `Config`, mirror the plugin's own
      `LoadSettings` verbatim for parsing (legacy fallbacks, lenient string-or-number ID parsing,
      conditional int64 conversions under specific auth modes), and copy decrypted secrets into
-     `Secrets`.
+     `DecryptedSecureJSONData`.
   2. **ApplyDefaults** — call `(*Config).ApplyDefaults` on the parsed config.
   3. **Validate** — call `(Config).Validate`; return its error if any.
 

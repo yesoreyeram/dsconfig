@@ -64,9 +64,9 @@ var SecureJsonDataKeys = SecureJsonDataConfig{
 
 // Config is the fully loaded configuration of a GitHub datasource instance.
 // The plugin stores nothing plugin-specific at the root level (url, basicAuth,
-// etc. are unused), so only the parsed jsonData fields and decrypted Secrets
+// etc. are unused), so only the parsed jsonData fields and decrypted secure data (DecryptedSecureJSONData)
 // live here. Callers reach everything directly as cfg.SelectedAuthType,
-// cfg.GitHubURL, etc. Enumerate configured secrets by iterating Secrets.
+// cfg.GitHubURL, etc. Enumerate configured secrets by iterating DecryptedSecureJSONData.
 type Config struct {
 	// jsonData fields, matching the plugin's pkg/models/settings.go Settings
 	// shape verbatim, including json tags. AppId/InstallationId are kept as
@@ -82,8 +82,8 @@ type Config struct {
 	InstallationIdInt64 int64       `json:"-"`
 	CachingEnabled      bool        `json:"cachingEnabled,omitempty"`
 
-	// Secrets holds the decrypted secure values by key (accessToken, privateKey).
-	Secrets map[SecureJsonDataKey]string `json:"-"`
+	// DecryptedSecureJSONData holds the decrypted secure values by key (accessToken, privateKey).
+	DecryptedSecureJSONData map[SecureJsonDataKey]string `json:"-"`
 }
 
 // UnmarshalJSON decodes jsonData into Config while tolerating appId and
@@ -132,7 +132,7 @@ func LoadConfig(ctx context.Context, settings backend.DataSourceInstanceSettings
 	logger.Debug("loading github datasource config")
 
 	cfg := Config{
-		Secrets: map[SecureJsonDataKey]string{},
+		DecryptedSecureJSONData: map[SecureJsonDataKey]string{},
 	}
 	if len(settings.JSONData) > 0 {
 		if err := json.Unmarshal(settings.JSONData, &cfg); err != nil {
@@ -157,13 +157,13 @@ func LoadConfig(ctx context.Context, settings backend.DataSourceInstanceSettings
 
 	for _, key := range SecureJsonDataKeys {
 		if val, ok := settings.DecryptedSecureJSONData[string(key)]; ok {
-			cfg.Secrets[key] = val
+			cfg.DecryptedSecureJSONData[key] = val
 		}
 	}
 
-	logger.Debug("loaded secure keys", "count", len(cfg.Secrets))
+	logger.Debug("loaded secure keys", "count", len(cfg.DecryptedSecureJSONData))
 
-	if cfg.Secrets[SecureJsonDataKeyAccessToken] != "" && cfg.SelectedAuthType == "" {
+	if cfg.DecryptedSecureJSONData[SecureJsonDataKeyAccessToken] != "" && cfg.SelectedAuthType == "" {
 		logger.Info("no selectedAuthType set but accessToken present; defaulting to personal-access-token (legacy config)")
 		cfg.SelectedAuthType = AuthTypePAT
 	}
@@ -223,7 +223,7 @@ func (c Config) Validate() error {
 
 	switch c.SelectedAuthType {
 	case AuthTypePAT:
-		if c.Secrets[SecureJsonDataKeyAccessToken] == "" {
+		if c.DecryptedSecureJSONData[SecureJsonDataKeyAccessToken] == "" {
 			errs = append(errs, errors.New("access token is required for personal-access-token auth"))
 		}
 	case AuthTypeGithubApp:
@@ -233,7 +233,7 @@ func (c Config) Validate() error {
 		if c.InstallationIdInt64 <= 0 {
 			errs = append(errs, errors.New("installationId is required for github-app auth"))
 		}
-		if c.Secrets[SecureJsonDataKeyPrivateKey] == "" {
+		if c.DecryptedSecureJSONData[SecureJsonDataKeyPrivateKey] == "" {
 			errs = append(errs, errors.New("privateKey is required for github-app auth"))
 		}
 	case "":

@@ -215,7 +215,7 @@ func TestLoadConfig(t *testing.T) {
 			if tt.wantSecureKeys != nil {
 				gotKeys := SecureJsonDataConfig{}
 				for _, key := range SecureJsonDataKeys {
-					if _, ok := cfg.Secrets[key]; ok {
+					if _, ok := cfg.DecryptedSecureJSONData[key]; ok {
 						gotKeys = append(gotKeys, key)
 					}
 				}
@@ -223,11 +223,11 @@ func TestLoadConfig(t *testing.T) {
 					t.Errorf("configured secure keys = %v, want %v", gotKeys, tt.wantSecureKeys)
 				}
 			}
-			if tt.wantAccessToken != "" && cfg.Secrets[SecureJsonDataKeyAccessToken] != tt.wantAccessToken {
-				t.Errorf("Secrets[accessToken] = %q, want %q", cfg.Secrets[SecureJsonDataKeyAccessToken], tt.wantAccessToken)
+			if tt.wantAccessToken != "" && cfg.DecryptedSecureJSONData[SecureJsonDataKeyAccessToken] != tt.wantAccessToken {
+				t.Errorf("Secrets[accessToken] = %q, want %q", cfg.DecryptedSecureJSONData[SecureJsonDataKeyAccessToken], tt.wantAccessToken)
 			}
-			if tt.wantPrivateKey != "" && cfg.Secrets[SecureJsonDataKeyPrivateKey] != tt.wantPrivateKey {
-				t.Errorf("Secrets[privateKey] = %q, want %q", cfg.Secrets[SecureJsonDataKeyPrivateKey], tt.wantPrivateKey)
+			if tt.wantPrivateKey != "" && cfg.DecryptedSecureJSONData[SecureJsonDataKeyPrivateKey] != tt.wantPrivateKey {
+				t.Errorf("Secrets[privateKey] = %q, want %q", cfg.DecryptedSecureJSONData[SecureJsonDataKeyPrivateKey], tt.wantPrivateKey)
 			}
 			if tt.checkAppIDs {
 				if cfg.AppIdInt64 != tt.wantAppID {
@@ -299,7 +299,7 @@ func TestValidate(t *testing.T) {
 			name: "PAT with accessToken",
 			cfg: Config{
 				SelectedAuthType: AuthTypePAT,
-				Secrets:          map[SecureJsonDataKey]string{SecureJsonDataKeyAccessToken: "tok"},
+				DecryptedSecureJSONData:          map[SecureJsonDataKey]string{SecureJsonDataKeyAccessToken: "tok"},
 			},
 		},
 		{
@@ -313,7 +313,7 @@ func TestValidate(t *testing.T) {
 				SelectedAuthType:    AuthTypeGithubApp,
 				AppIdInt64:          123,
 				InstallationIdInt64: 456,
-				Secrets:             map[SecureJsonDataKey]string{SecureJsonDataKeyPrivateKey: "pem"},
+				DecryptedSecureJSONData:             map[SecureJsonDataKey]string{SecureJsonDataKeyPrivateKey: "pem"},
 			},
 		},
 		{
@@ -345,7 +345,7 @@ func TestValidate(t *testing.T) {
 			cfg: Config{
 				SelectedAuthType: AuthTypePAT,
 				GithubPlan:       LicenseTypeEnterpriseServer,
-				Secrets:          map[SecureJsonDataKey]string{SecureJsonDataKeyAccessToken: "tok"},
+				DecryptedSecureJSONData:          map[SecureJsonDataKey]string{SecureJsonDataKeyAccessToken: "tok"},
 			},
 			wantErr: "githubUrl is required",
 		},
@@ -355,7 +355,7 @@ func TestValidate(t *testing.T) {
 				SelectedAuthType: AuthTypePAT,
 				GithubPlan:       LicenseTypeEnterpriseServer,
 				GitHubURL:        "https://github.example.com",
-				Secrets:          map[SecureJsonDataKey]string{SecureJsonDataKeyAccessToken: "tok"},
+				DecryptedSecureJSONData:          map[SecureJsonDataKey]string{SecureJsonDataKeyAccessToken: "tok"},
 			},
 		},
 	}
