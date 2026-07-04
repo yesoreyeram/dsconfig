@@ -249,7 +249,7 @@
     ],
     "instructions": [
         {
-            "msg": "Two authentication methods are available, selected via jsonData.selectedAuthType: 'personal-access-token' (the default) and 'github-app'. Configure exactly one method; only the credentials belonging to the selected method are used by the backend.",
+            "msg": "Two authentication methods are available, selected via jsonData.selectedAuthType: 'personal-access-token' (the default) and 'github-app'. Configure exactly one method; only the credentials of the selected method are used. Switching methods does not clear the other method's fields or secrets \u2014 stale values are harmless but confusing.",
             "tags": [
                 "llm",
                 "auth"
@@ -270,63 +270,25 @@
             ]
         },
         {
-            "msg": "For GitHub.com (Free, Pro & Team) and GitHub Enterprise Cloud, do NOT set jsonData.githubUrl — the API endpoints are the same and the backend treats any non-empty githubUrl as an on-prem Enterprise Server. Only set jsonData.githubUrl (together with jsonData.githubPlan='github-enterprise-server') for an on-prem GitHub Enterprise Server instance, e.g. {\"jsonData\":{\"githubPlan\":\"github-enterprise-server\",\"githubUrl\":\"https://github.example.com\"}}. Prefer omitting the trailing slash on githubUrl: the backend string-concatenates '/api/v3' and '/api/graphql' onto it.",
+            "msg": "Legacy auth interpretation: datasources created before selectedAuthType was introduced store only secureJsonData.accessToken with no auth type; the backend treats them as 'personal-access-token'. Do not assume a missing selectedAuthType means the datasource is unconfigured.",
             "tags": [
                 "llm",
-                "connection"
+                "auth",
+                "legacy"
             ]
         },
         {
             "msg": "secureJsonData values (accessToken, privateKey) are write-only: they can be set or reset but never read back. To check whether a secret is already configured on an existing datasource, read the secureJsonFields object (e.g. secureJsonFields.accessToken == true) instead of secureJsonData.",
             "tags": [
                 "llm",
+                "auth",
                 "secure"
             ]
         },
         {
-            "msg": "When updating an existing datasource, switching selectedAuthType does not clear the other method's fields or secrets; stale values are harmless but confusing. When switching away from 'github-enterprise-server', also clear jsonData.githubUrl to an empty string (the editor does this automatically), otherwise the datasource keeps behaving as Enterprise Server.",
+            "msg": "For GitHub.com (Free, Pro & Team) and GitHub Enterprise Cloud, do NOT set jsonData.githubUrl \u2014 the backend treats any non-empty githubUrl as an on-prem Enterprise Server. Only set jsonData.githubUrl (with jsonData.githubPlan='github-enterprise-server') for an on-prem instance, e.g. {\"jsonData\":{\"githubPlan\":\"github-enterprise-server\",\"githubUrl\":\"https://github.example.com\"}}, and clear githubUrl to an empty string when switching away. Prefer omitting the trailing slash: the backend string-concatenates '/api/v3' and '/api/graphql' onto githubUrl.",
             "tags": [
                 "llm",
-                "auth",
-                "connection"
-            ]
-        },
-        {
-            "msg": "The configuration editor renders no required-field markers (DataSourceDescription is rendered with hasRequiredFields=false); the requiredWhen rules in this schema encode the backend data contract instead.",
-            "tags": [
-                "ui"
-            ]
-        },
-        {
-            "msg": "Datasources created before selectedAuthType was introduced store only secureJsonData.accessToken; the backend defaults selectedAuthType to 'personal-access-token' when accessToken is set and selectedAuthType is empty.",
-            "tags": [
-                "legacy",
-                "auth"
-            ]
-        },
-        {
-            "msg": "Datasources created before githubPlan was introduced may have jsonData.githubUrl set without a plan; the configuration editor treats any datasource with a non-empty githubUrl as 'github-enterprise-server', and falls back to 'github-basic' when neither githubPlan nor githubUrl is set. This derivation is captured by the virtual virtual_selectedLicense field's computed read expression, and its effects capture the writes to githubPlan/githubUrl (githubUrl is cleared unless 'github-enterprise-server' is selected).",
-            "tags": [
-                "legacy",
-                "connection"
-            ]
-        },
-        {
-            "msg": "The configuration editor stores appId and installationId as strings, but the plugin backend accepts either a JSON string or a JSON number for both (unmarshalled as json.RawMessage and parsed to int64).",
-            "tags": [
-                "auth"
-            ]
-        },
-        {
-            "msg": "jsonData.githubPlan is a frontend-only setting: it is written and read by the configuration editor but never read by the plugin backend, which infers Enterprise Server solely from a non-empty jsonData.githubUrl.",
-            "tags": [
-                "frontend-only",
-                "connection"
-            ]
-        },
-        {
-            "msg": "For 'github-enterprise-server', the backend derives API endpoints from githubUrl: '<githubUrl>/api/v3' for the REST API and '<githubUrl>/api/graphql' for the GraphQL API.",
-            "tags": [
                 "connection"
             ]
         }
