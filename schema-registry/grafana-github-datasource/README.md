@@ -25,20 +25,20 @@ All labels, placeholders, tooltips, options, and help text were taken verbatim f
 
 | Schema field | Storage key | Target | Editor label | Read by backend? |
 | --- | --- | --- | --- | --- |
-| `selected_license` | — (virtual) | — | GitHub License Type | — (editor-local state) |
-| `github_plan` | `githubPlan` | `jsonData` | — (managed by `selected_license`) | **No — frontend-only** |
-| `github_url` | `githubUrl` | `jsonData` | GitHub Enterprise Server URL | Yes |
-| `selected_auth_type` | `selectedAuthType` | `jsonData` | Authentication Type | Yes |
-| `access_token` | `accessToken` | `secureJsonData` | Personal Access Token | Yes |
-| `app_id` | `appId` | `jsonData` | App ID | Yes |
-| `installation_id` | `installationId` | `jsonData` | Installation ID | Yes |
-| `private_key` | `privateKey` | `secureJsonData` | Private Key | Yes |
-| `caching_enabled` | `cachingEnabled` | `jsonData` | — (no UI) | Yes (backend-only) |
+| `virtual_selectedLicense` | — (virtual) | — | GitHub License Type | — (editor-local state) |
+| `jsonData_githubPlan` | `githubPlan` | `jsonData` | — (managed by `virtual_selectedLicense`) | **No — frontend-only** |
+| `jsonData_githubUrl` | `githubUrl` | `jsonData` | GitHub Enterprise Server URL | Yes |
+| `jsonData_selectedAuthType` | `selectedAuthType` | `jsonData` | Authentication Type | Yes |
+| `secureJsonData_accessToken` | `accessToken` | `secureJsonData` | Personal Access Token | Yes |
+| `jsonData_appId` | `appId` | `jsonData` | App ID | Yes |
+| `jsonData_installationId` | `installationId` | `jsonData` | Installation ID | Yes |
+| `secureJsonData_privateKey` | `privateKey` | `secureJsonData` | Private Key | Yes |
+| `jsonData_cachingEnabled` | `cachingEnabled` | `jsonData` | — (no UI) | Yes (backend-only) |
 
 ### Frontend-only settings
 
 - **`githubPlan`** is written and read only by the config editor to drive the "GitHub License Type" radio. The backend never reads it — it infers Enterprise Server solely from a non-empty `githubUrl`. Selecting "Free, Pro & Team" vs "Enterprise Cloud" changes nothing in backend behavior.
-- **`selected_license`** does not exist in storage at all: the editor's radio is backed by local React state (`selectedLicense` in `ConfigEditor.tsx`), derived from `githubPlan`/`githubUrl` on load. It is modeled here as a `kind: "virtual"` field with a `storage.computed.read` expression and `effects` describing the writes it performs.
+- **`virtual_selectedLicense`** does not exist in storage at all: the editor's radio is backed by local React state (`selectedLicense` in `ConfigEditor.tsx`), derived from `githubPlan`/`githubUrl` on load. It is modeled here as a `kind: "virtual"` field with a `storage.computed.read` expression and `effects` describing the writes it performs.
 
 ### Backend-only settings
 
@@ -46,11 +46,11 @@ All labels, placeholders, tooltips, options, and help text were taken verbatim f
 
 ## Modeling decisions
 
-- **Virtual license selector**: `onLicenseChange` writes `githubPlan` and clears `githubUrl` unless "Enterprise Server" is selected. This multi-field write is captured as `effects` on the virtual `selected_license` field; `github_plan` is tagged `managed-by:selected_license` and has no UI of its own.
+- **Virtual license selector**: `onLicenseChange` writes `githubPlan` and clears `githubUrl` unless "Enterprise Server" is selected. This multi-field write is captured as `effects` on the virtual `virtual_selectedLicense` field; `jsonData_githubPlan` is tagged `managed-by:virtual_selectedLicense` and has no UI of its own.
 - **`requiredWhen` vs the editor**: the editor renders `DataSourceDescription` with `hasRequiredFields={false}` and marks nothing required, but the backend hard-fails without credentials (`New` in `client.go` returns "access token or app token are required"). The `requiredWhen` rules encode that backend contract; an instruction records the editor discrepancy.
-- **Help drawer**: the editor's top-level "Access Token & Permissions" `Collapse` is attached as the `help` drawer of `access_token`, with the markdown preserved verbatim (including upstream typos — see below).
+- **Help drawer**: the editor's top-level "Access Token & Permissions" `Collapse` is attached as the `help` drawer of `secureJsonData_accessToken`, with the markdown preserved verbatim (including upstream typos — see below).
 - **Secure Socks Proxy excluded**: the editor conditionally renders `SecureSocksProxySettings` (writing `jsonData.enableSecureSocksProxy`) when the Grafana instance has `secureSocksDSProxyEnabled`, and both backend auth paths honor it. The field is deliberately omitted from this registry entry.
-- **Field IDs** use snake_case (`app_id`) while storage `key`s keep the plugin's camelCase (`appId`) — `id` is the schema reference, `key` is the storage contract.
+- **Field ID naming convention**: IDs are prefixed with their storage target for easy discoverability — `root_`, `jsonData_`, or `secureJsonData_` (and `virtual_` for virtual fields, which have no storage target) — followed by the camelCase storage key, e.g. `jsonData_appId`, `secureJsonData_accessToken`. The `key` property keeps the plugin's raw storage key (`appId`) — `id` is the schema reference, `key` is the storage contract.
 - **`RootConfig` is a blank object**: the plugin stores nothing at the root level (`url`, `basicAuth`, etc. unused), so the root type marshals to `{}` rather than null.
 - **`SecureJsonDataConfig` is a key list**: secure values are write-only, so the secure type is just the array of secret key names (`accessToken`, `privateKey`); consumers read `secureJsonFields` to see what is configured.
 

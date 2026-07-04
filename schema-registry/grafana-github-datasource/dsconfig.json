@@ -6,7 +6,7 @@
     "docURL": "https://grafana.com/docs/plugins/grafana-github-datasource",
     "fields": [
         {
-            "id": "selected_license",
+            "id": "virtual_selectedLicense",
             "key": "selectedLicense",
             "label": "GitHub License Type",
             "valueType": "string",
@@ -47,27 +47,27 @@
                 {
                     "when": "value == 'github-basic'",
                     "set": {
-                        "github_plan": "github-basic",
-                        "github_url": ""
+                        "jsonData_githubPlan": "github-basic",
+                        "jsonData_githubUrl": ""
                     }
                 },
                 {
                     "when": "value == 'github-enterprise-cloud'",
                     "set": {
-                        "github_plan": "github-enterprise-cloud",
-                        "github_url": ""
+                        "jsonData_githubPlan": "github-enterprise-cloud",
+                        "jsonData_githubUrl": ""
                     }
                 },
                 {
                     "when": "value == 'github-enterprise-server'",
                     "set": {
-                        "github_plan": "github-enterprise-server"
+                        "jsonData_githubPlan": "github-enterprise-server"
                     }
                 }
             ]
         },
         {
-            "id": "github_plan",
+            "id": "jsonData_githubPlan",
             "key": "githubPlan",
             "valueType": "string",
             "target": "jsonData",
@@ -82,26 +82,26 @@
                 }
             ],
             "tags": [
-                "managed-by:selected_license",
+                "managed-by:virtual_selectedLicense",
                 "frontend-only"
             ]
         },
         {
-            "id": "github_url",
+            "id": "jsonData_githubUrl",
             "key": "githubUrl",
             "label": "GitHub Enterprise Server URL",
             "valueType": "string",
             "target": "jsonData",
             "role": "endpoint.baseUrl",
-            "dependsOn": "selected_license == 'github-enterprise-server'",
-            "requiredWhen": "github_plan == 'github-enterprise-server'",
+            "dependsOn": "virtual_selectedLicense == 'github-enterprise-server'",
+            "requiredWhen": "jsonData_githubPlan == 'github-enterprise-server'",
             "ui": {
                 "component": "input",
                 "placeholder": "http(s)://HOSTNAME/"
             }
         },
         {
-            "id": "selected_auth_type",
+            "id": "jsonData_selectedAuthType",
             "key": "selectedAuthType",
             "label": "Authentication Type",
             "valueType": "string",
@@ -132,14 +132,14 @@
             }
         },
         {
-            "id": "access_token",
+            "id": "secureJsonData_accessToken",
             "key": "accessToken",
             "label": "Personal Access Token",
             "valueType": "string",
             "target": "secureJsonData",
             "role": "auth.bearer.token",
-            "dependsOn": "selected_auth_type == 'personal-access-token'",
-            "requiredWhen": "selected_auth_type == 'personal-access-token'",
+            "dependsOn": "jsonData_selectedAuthType == 'personal-access-token'",
+            "requiredWhen": "jsonData_selectedAuthType == 'personal-access-token'",
             "ui": {
                 "component": "input",
                 "placeholder": "Personal Access Token"
@@ -151,40 +151,40 @@
             }
         },
         {
-            "id": "app_id",
+            "id": "jsonData_appId",
             "key": "appId",
             "label": "App ID",
             "valueType": "string",
             "target": "jsonData",
-            "dependsOn": "selected_auth_type == 'github-app'",
-            "requiredWhen": "selected_auth_type == 'github-app'",
+            "dependsOn": "jsonData_selectedAuthType == 'github-app'",
+            "requiredWhen": "jsonData_selectedAuthType == 'github-app'",
             "ui": {
                 "component": "input",
                 "placeholder": "App ID"
             }
         },
         {
-            "id": "installation_id",
+            "id": "jsonData_installationId",
             "key": "installationId",
             "label": "Installation ID",
             "valueType": "string",
             "target": "jsonData",
-            "dependsOn": "selected_auth_type == 'github-app'",
-            "requiredWhen": "selected_auth_type == 'github-app'",
+            "dependsOn": "jsonData_selectedAuthType == 'github-app'",
+            "requiredWhen": "jsonData_selectedAuthType == 'github-app'",
             "ui": {
                 "component": "input",
                 "placeholder": "Installation ID"
             }
         },
         {
-            "id": "private_key",
+            "id": "secureJsonData_privateKey",
             "key": "privateKey",
             "label": "Private Key",
             "valueType": "string",
             "target": "secureJsonData",
             "role": "auth.jwt.signingKey",
-            "dependsOn": "selected_auth_type == 'github-app'",
-            "requiredWhen": "selected_auth_type == 'github-app'",
+            "dependsOn": "jsonData_selectedAuthType == 'github-app'",
+            "requiredWhen": "jsonData_selectedAuthType == 'github-app'",
             "ui": {
                 "component": "textarea",
                 "multiline": true,
@@ -193,7 +193,7 @@
             }
         },
         {
-            "id": "caching_enabled",
+            "id": "jsonData_cachingEnabled",
             "key": "cachingEnabled",
             "description": "Enables the query caching wrapper in the plugin backend. Not exposed in the configuration editor; the backend currently enables caching for every datasource instance.",
             "valueType": "boolean",
@@ -211,8 +211,8 @@
             "order": 1,
             "optional": true,
             "fieldRefs": [
-                "selected_license",
-                "github_url"
+                "virtual_selectedLicense",
+                "jsonData_githubUrl"
             ]
         },
         {
@@ -220,11 +220,11 @@
             "title": "Authentication",
             "order": 2,
             "fieldRefs": [
-                "selected_auth_type",
-                "access_token",
-                "app_id",
-                "installation_id",
-                "private_key"
+                "jsonData_selectedAuthType",
+                "secureJsonData_accessToken",
+                "jsonData_appId",
+                "jsonData_installationId",
+                "secureJsonData_privateKey"
             ]
         }
     ],
@@ -232,17 +232,17 @@
         {
             "type": "group",
             "fields": [
-                "app_id",
-                "installation_id",
-                "private_key"
+                "jsonData_appId",
+                "jsonData_installationId",
+                "secureJsonData_privateKey"
             ],
             "description": "GitHub App credentials"
         },
         {
             "type": "pair",
             "fields": [
-                "github_plan",
-                "github_url"
+                "jsonData_githubPlan",
+                "jsonData_githubUrl"
             ],
             "description": "GitHub license type and the Enterprise Server base URL it enables"
         }
@@ -262,7 +262,7 @@
             ]
         },
         {
-            "msg": "Datasources created before githubPlan was introduced may have jsonData.githubUrl set without a plan; the configuration editor treats any datasource with a non-empty githubUrl as 'github-enterprise-server', and falls back to 'github-basic' when neither githubPlan nor githubUrl is set. This derivation is captured by the virtual selected_license field's computed read expression, and its effects capture the writes to githubPlan/githubUrl (githubUrl is cleared unless 'github-enterprise-server' is selected).",
+            "msg": "Datasources created before githubPlan was introduced may have jsonData.githubUrl set without a plan; the configuration editor treats any datasource with a non-empty githubUrl as 'github-enterprise-server', and falls back to 'github-basic' when neither githubPlan nor githubUrl is set. This derivation is captured by the virtual virtual_selectedLicense field's computed read expression, and its effects capture the writes to githubPlan/githubUrl (githubUrl is cleared unless 'github-enterprise-server' is selected).",
             "tags": [
                 "legacy",
                 "connection"
