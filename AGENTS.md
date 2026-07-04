@@ -1,10 +1,10 @@
-# Agent instructions: authoring datasource schema-registry entries
+# Agent instructions: authoring datasource registry entries
 
 This file guides AI coding agents (Claude Code, GitHub Copilot, Cursor, etc.) working in this
 repository. Its primary workflow is **adding or updating a datasource configuration schema under
-`schema-registry/<plugin_id>/`**. The instructions are agnostic of the datasource type — follow the
+`registry/<plugin_id>/`**. The instructions are agnostic of the datasource type — follow the
 same process for any Grafana datasource plugin. A complete worked example lives in
-[`schema-registry/grafana-github-datasource/`](schema-registry/grafana-github-datasource/).
+[`registry/grafana-github-datasource/`](registry/grafana-github-datasource/).
 
 A Claude Code skill wrapping this workflow is available at
 [`.claude/skills/add-datasource-schema/SKILL.md`](.claude/skills/add-datasource-schema/SKILL.md).
@@ -15,7 +15,7 @@ A Claude Code skill wrapping this workflow is available at
 | --- | --- |
 | `dsconfig/` | The dsconfig schema SDK: Go types (`schema.go`), validator, `baseFields` packs, dsconfig→SDK converter (`convert.go`), and the JSON Schema (`schema.json`) every `dsconfig.json` must satisfy |
 | `schema/` | Conformance test suite and artifact helpers plugins import |
-| `schema-registry/<plugin_id>/` | One entry per datasource plugin (see structure below) |
+| `registry/<plugin_id>/` | One entry per datasource plugin (see structure below) |
 | `go.work` | Workspace — every registry entry module must be added here |
 
 ## Registry entry structure
@@ -23,13 +23,13 @@ A Claude Code skill wrapping this workflow is available at
 Each entry is a standalone Go module:
 
 ```
-schema-registry/<plugin_id>/
+registry/<plugin_id>/
 ├── dsconfig.json    # dsconfig v1 schema — the single source of truth
 ├── settings.ts        # TypeScript models: RootConfig, JsonDataConfig, SecureJsonDataConfig
 ├── settings.go        # Flat Go Config (jsonData + DecryptedSecureJSONData; root fields only if used) + LoadConfig utility
 ├── schema.go        # k8s-style SDK PluginSchema: embeds dsconfig.json + SettingsExamples
 ├── schema_test.go   # Guards the schema bundle shape and LoadConfig behavior
-├── go.mod / go.sum  # module github.com/grafana/dsconfig/schema-registry/<plugin_id>
+├── go.mod / go.sum  # module github.com/grafana/dsconfig/registry/<plugin_id>
 └── README.md        # Research notes, field inventory, discrepancies, type provenance
 ```
 
@@ -158,9 +158,9 @@ in the entry README so consumers understand what `LoadConfig` guarantees.
 
 ## Step 5 — Wire the module and validate
 
-1. `go.mod`: module `github.com/grafana/dsconfig/schema-registry/<plugin_id>`, with
+1. `go.mod`: module `github.com/grafana/dsconfig/registry/<plugin_id>`, with
    `replace github.com/grafana/dsconfig/dsconfig => ../../dsconfig`; run `go mod tidy`.
-2. Add `use ./schema-registry/<plugin_id>` to the repo `go.work`.
+2. Add `use ./registry/<plugin_id>` to the repo `go.work`.
 3. `schema_test.go` must assert at minimum: `NewSchema()` succeeds; `secureJsonData` is **not** in
    the settings spec; `secureValues` match the secure key list; every expected `jsonData` property
    is in the spec; the `""` default example exists; every example has `jsonData` and a non-empty

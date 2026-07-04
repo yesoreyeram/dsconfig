@@ -1,4 +1,4 @@
-module github.com/grafana/dsconfig/schema-registry/grafana-github-datasource
+module github.com/grafana/dsconfig/registry/grafana-github-datasource
 
 go 1.26.4
 

@@ -1,12 +1,12 @@
 ---
 name: add-datasource-schema
-description: Create or update a datasource configuration schema entry under schema-registry/<plugin_id>/ (dsconfig.json, settings.ts, settings.go, schema.go, tests, README). Use when asked to add a dsconfig schema for a Grafana datasource plugin, capture a plugin's config editor as a schema, or extend an existing schema-registry entry.
+description: Create or update a datasource configuration schema entry under registry/<plugin_id>/ (dsconfig.json, settings.ts, settings.go, schema.go, tests, README). Use when asked to add a dsconfig schema for a Grafana datasource plugin, capture a plugin's config editor as a schema, or extend an existing registry entry.
 ---
 
-# Add a datasource schema-registry entry
+# Add a datasource registry entry
 
 Follow the canonical, datasource-agnostic workflow in [AGENTS.md](../../../AGENTS.md) at the repo
-root. Use [schema-registry/grafana-github-datasource/](../../../schema-registry/grafana-github-datasource/)
+root. Use [registry/grafana-github-datasource/](../../../registry/grafana-github-datasource/)
 as the worked reference example. Summary of the workflow:
 
 ## 1. Research (capture the inputs)
