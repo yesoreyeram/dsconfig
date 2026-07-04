@@ -205,8 +205,10 @@ per-entry `go.mod`, no `go.work` edit, and no `replace` directive to add.
 Required sections: file table; sources researched (with exact library versions); field inventory
 table (schema ID, storage key, target, editor label, read-by-backend); frontend-only and
 backend-only settings; modeling decisions; **where the types are defined** (frontend and backend,
-including types that come from libraries/packages/SDKs rather than the plugin itself); settings
-examples matrix; potential upstream bugs/discrepancies; validation performed.
+including types that come from libraries/packages/SDKs rather than the plugin itself — list only
+config type/field definitions; omit UI components and functions/helpers even when they are the
+reason a field exists); settings examples matrix; potential upstream bugs/discrepancies; validation
+performed.
 
 ## General guidelines
 

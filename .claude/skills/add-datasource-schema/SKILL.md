@@ -90,5 +90,5 @@ workspace modules still build.
 ## 6. README.md
 
 Sources with versions, field inventory, frontend-only/backend-only settings, modeling decisions,
-where the types are defined (plugin vs libraries/SDKs, frontend and backend), examples matrix,
-upstream bugs/discrepancies, validation performed.
+where the types are defined (plugin vs libraries/SDKs, frontend and backend — types/fields only,
+no UI components or functions), examples matrix, upstream bugs/discrepancies, validation performed.

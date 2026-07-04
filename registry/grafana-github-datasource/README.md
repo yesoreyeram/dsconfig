@@ -139,7 +139,10 @@ from multiple lines (e.g. label from one place, default from another), all lines
 ## Where the types are defined
 
 The configuration types are spread across the plugin and its dependencies — some fields and base
-types come from libraries/SDKs rather than the plugin itself:
+types come from libraries/SDKs rather than the plugin itself. Only config type/field definitions
+are listed below — UI components (e.g. `ConfigSection`, `DataSourceDescription`,
+`SecureSocksProxySettings`) and functions/helpers (e.g. `LoadSettings`, `rawMessageToInt64`,
+`onUpdateDatasourceJsonDataOption`) are omitted even where they are the reason a field exists.
 
 ### Frontend (TypeScript)
 
@@ -147,20 +150,15 @@ types come from libraries/SDKs rather than the plugin itself:
 | --- | --- | --- |
 | `GitHubDataSourceOptions` (jsonData), `GitHubAuthType`, `GitHubLicenseType`, `GitHubSecureJsonDataKeys`, `GitHubSecureJsonData` | `src/types/config.ts:1-19` | plugin ([grafana/github-datasource](https://github.com/grafana/github-datasource)) |
 | `DataSourceJsonData` (base interface `GitHubDataSourceOptions` extends: `authType`, `defaultRegion`, `profile`, `manageAlerts`, …) | `packages/grafana-data/src/types/datasource.ts` | `@grafana/data` `12.4.2` (grafana/grafana `v12.4.2`) |
-| `DataSourcePluginOptionsEditorProps`, `onUpdateDatasourceJsonDataOption`, `onUpdateDatasourceSecureJsonDataOption` | `packages/grafana-data/src/` | `@grafana/data` `12.4.2` (grafana/grafana `v12.4.2`) |
-| `SecureSocksProxyConfig` / `enableSecureSocksProxy` jsonData field (excluded from this entry) | `packages/grafana-ui/src/components/DataSourceSettings/SecureSocksProxySettings.tsx` | `@grafana/ui` `12.4.2` (grafana/grafana `v12.4.2`) |
-| `ConfigSection`, `DataSourceDescription` (editor layout/intro, no storage fields) | `src/components/ConfigEditor/` | `@grafana/plugin-ui` `0.13.1` (grafana/plugin-ui `v0.13.1`) |
+| `SecureSocksProxyConfig` (interface adding the `enableSecureSocksProxy` jsonData field; excluded from this entry) | `packages/grafana-ui/src/components/DataSourceSettings/SecureSocksProxySettings.tsx` | `@grafana/ui` `12.4.2` (grafana/grafana `v12.4.2`) |
 
 ### Backend (Go)
 
 | Type / field | Defined in | Package |
 | --- | --- | --- |
-| `Settings` (jsonData + decrypted secrets), `AuthType` (`AuthTypePAT`, `AuthTypeGithubApp`), `LoadSettings`, `rawMessageToInt64` | `pkg/models/settings.go:12-67` | plugin ([grafana/github-datasource](https://github.com/grafana/github-datasource)) |
+| `Settings` (jsonData + decrypted secrets), `AuthType` (`AuthTypePAT`, `AuthTypeGithubApp`) | `pkg/models/settings.go:12-67` | plugin ([grafana/github-datasource](https://github.com/grafana/github-datasource)) |
 | `backend.DataSourceInstanceSettings` (carries `JSONData`, `DecryptedSecureJSONData`, and root fields like `URL`, `BasicAuthEnabled` — unused by this plugin) | `backend/common.go` | `github.com/grafana/grafana-plugin-sdk-go` `v0.292.1` |
-| `httpclient.Options` (timeouts, TLS, `ProxyOptions`) consumed when building the GitHub clients | `backend/httpclient` | `github.com/grafana/grafana-plugin-sdk-go` `v0.292.1` |
-| `proxy.New(...).SecureSocksProxyEnabled()` (secure socks proxy wiring) | `backend/proxy` | `github.com/grafana/grafana-plugin-sdk-go` `v0.292.1` |
-| GitHub App installation transport (`ghinstallation.New`, JWT signing with `privateKey`, `itr.BaseURL`) | — | `github.com/bradleyfalzon/ghinstallation/v2` |
-| REST / GraphQL clients the settings feed into (`WithEnterpriseURLs`, `NewEnterpriseClient`) | — | `github.com/google/go-github` / `github.com/shurcooL/githubv4` |
+| `httpclient.Options` (timeouts, TLS, `ProxyOptions` fields) | `backend/httpclient` | `github.com/grafana/grafana-plugin-sdk-go` `v0.292.1` |
 | `LicenseType` has **no backend equivalent** — `githubPlan` exists only in the frontend types | — | — |
 
 The models in this entry flatten that spread into a single Go `Config` type (jsonData fields +
