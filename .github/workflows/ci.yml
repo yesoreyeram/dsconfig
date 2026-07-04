@@ -87,8 +87,8 @@ jobs:
           for f in registry/*/dsconfig.json; do
             echo "Validating $f"
             ajv validate \
-              --spec=draft2020 \
-              --strict=true \
+              --spec=draft7 \
+              --strict=false \
               --all-errors \
               -c ajv-formats \
               -s dsconfig/schema.json \

@@ -298,8 +298,8 @@ func TestValidate(t *testing.T) {
 		{
 			name: "PAT with accessToken",
 			cfg: Config{
-				SelectedAuthType: AuthTypePAT,
-				DecryptedSecureJSONData:          map[SecureJsonDataKey]string{SecureJsonDataKeyAccessToken: "tok"},
+				SelectedAuthType:        AuthTypePAT,
+				DecryptedSecureJSONData: map[SecureJsonDataKey]string{SecureJsonDataKeyAccessToken: "tok"},
 			},
 		},
 		{
@@ -310,10 +310,10 @@ func TestValidate(t *testing.T) {
 		{
 			name: "github-app happy path",
 			cfg: Config{
-				SelectedAuthType:    AuthTypeGithubApp,
-				AppIdInt64:          123,
-				InstallationIdInt64: 456,
-				DecryptedSecureJSONData:             map[SecureJsonDataKey]string{SecureJsonDataKeyPrivateKey: "pem"},
+				SelectedAuthType:        AuthTypeGithubApp,
+				AppIdInt64:              123,
+				InstallationIdInt64:     456,
+				DecryptedSecureJSONData: map[SecureJsonDataKey]string{SecureJsonDataKeyPrivateKey: "pem"},
 			},
 		},
 		{
@@ -343,19 +343,19 @@ func TestValidate(t *testing.T) {
 		{
 			name: "enterprise server without url errors",
 			cfg: Config{
-				SelectedAuthType: AuthTypePAT,
-				GithubPlan:       LicenseTypeEnterpriseServer,
-				DecryptedSecureJSONData:          map[SecureJsonDataKey]string{SecureJsonDataKeyAccessToken: "tok"},
+				SelectedAuthType:        AuthTypePAT,
+				GithubPlan:              LicenseTypeEnterpriseServer,
+				DecryptedSecureJSONData: map[SecureJsonDataKey]string{SecureJsonDataKeyAccessToken: "tok"},
 			},
 			wantErr: "githubUrl is required",
 		},
 		{
 			name: "enterprise server with url",
 			cfg: Config{
-				SelectedAuthType: AuthTypePAT,
-				GithubPlan:       LicenseTypeEnterpriseServer,
-				GitHubURL:        "https://github.example.com",
-				DecryptedSecureJSONData:          map[SecureJsonDataKey]string{SecureJsonDataKeyAccessToken: "tok"},
+				SelectedAuthType:        AuthTypePAT,
+				GithubPlan:              LicenseTypeEnterpriseServer,
+				GitHubURL:               "https://github.example.com",
+				DecryptedSecureJSONData: map[SecureJsonDataKey]string{SecureJsonDataKeyAccessToken: "tok"},
 			},
 		},
 	}

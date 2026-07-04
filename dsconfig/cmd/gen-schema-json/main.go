@@ -35,8 +35,8 @@ import (
 // discovered via moduleRoot() at runtime. Callers can still override them
 // with explicit flags.
 const (
-	defaultPacksSubdir  = "packs"
-	defaultSchemaFile   = "schema.json"
+	defaultPacksSubdir = "packs"
+	defaultSchemaFile  = "schema.json"
 )
 
 func main() {
