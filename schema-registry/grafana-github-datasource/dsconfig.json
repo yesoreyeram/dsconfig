@@ -82,7 +82,8 @@
                 }
             ],
             "tags": [
-                "managed-by:selected_license"
+                "managed-by:selected_license",
+                "frontend-only"
             ]
         },
         {
@@ -271,6 +272,13 @@
             "msg": "The configuration editor stores appId and installationId as strings, but the plugin backend accepts either a JSON string or a JSON number for both (unmarshalled as json.RawMessage and parsed to int64).",
             "tags": [
                 "auth"
+            ]
+        },
+        {
+            "msg": "jsonData.githubPlan is a frontend-only setting: it is written and read by the configuration editor but never read by the plugin backend, which infers Enterprise Server solely from a non-empty jsonData.githubUrl.",
+            "tags": [
+                "frontend-only",
+                "connection"
             ]
         },
         {
