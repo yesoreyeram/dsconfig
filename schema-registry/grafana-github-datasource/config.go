@@ -5,9 +5,7 @@
 //   - pkg/models/settings.go (Settings, AuthType)
 //   - src/types/config.ts (GitHubLicenseType, GitHubAuthType,
 //     GitHubDataSourceOptions, GitHubSecureJsonData)
-//   - src/views/ConfigEditor.tsx (which additionally writes
-//     jsonData.enableSecureSocksProxy via the @grafana/ui
-//     SecureSocksProxySettings component)
+//   - src/views/ConfigEditor.tsx
 //
 // https://github.com/grafana/github-datasource
 package githubdatasource
@@ -65,10 +63,6 @@ type JSONData struct {
 	// Not exposed in the configuration editor; the backend currently enables
 	// caching for every datasource instance.
 	CachingEnabled bool `json:"cachingEnabled,omitempty"`
-	// EnableSecureSocksProxy connects to the datasource via the Grafana secure
-	// socks proxy. Written by the @grafana/ui SecureSocksProxySettings
-	// component when the Grafana instance has secureSocksDSProxyEnabled.
-	EnableSecureSocksProxy bool `json:"enableSecureSocksProxy,omitempty"`
 }
 
 // SecureJSONData models the fields stored in the datasource's secureJsonData.

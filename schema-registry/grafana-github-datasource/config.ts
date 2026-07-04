@@ -4,8 +4,7 @@
  * Mirrors the plugin source of truth:
  * - `src/types/config.ts` (`GitHubLicenseType`, `GitHubAuthType`, `GitHubDataSourceOptions`,
  *   `GitHubSecureJsonDataKeys`, `GitHubSecureJsonData`)
- * - `src/views/ConfigEditor.tsx` (which additionally writes
- *   `jsonData.enableSecureSocksProxy` via the `@grafana/ui` `SecureSocksProxySettings` component)
+ * - `src/views/ConfigEditor.tsx`
  * - `pkg/models/settings.go` (which additionally reads `jsonData.cachingEnabled`)
  *
  * https://github.com/grafana/github-datasource
@@ -19,10 +18,8 @@ export type GitHubAuthType = 'personal-access-token' | 'github-app';
  * Fields stored in `jsonData`.
  *
  * Matches the plugin's `GitHubDataSourceOptions` (which extends `DataSourceJsonData`
- * from `@grafana/data`), plus the two `jsonData` keys written/read outside
- * `src/types/config.ts`: `enableSecureSocksProxy` (written by the `@grafana/ui`
- * `SecureSocksProxySettings` component) and `cachingEnabled` (read by
- * `pkg/models/settings.go`).
+ * from `@grafana/data`), plus the `jsonData` key read outside
+ * `src/types/config.ts`: `cachingEnabled` (read by `pkg/models/settings.go`).
  */
 export interface GitHubJsonData {
   githubPlan?: GitHubLicenseType;
@@ -30,9 +27,6 @@ export interface GitHubJsonData {
   selectedAuthType?: GitHubAuthType;
   appId?: string;
   installationId?: string;
-  // enableSecureSocksProxy is set by the @grafana/ui SecureSocksProxySettings component
-  // when the Grafana instance has secureSocksDSProxyEnabled
-  enableSecureSocksProxy?: boolean;
   // cachingEnabled is not exposed in the configuration editor; the plugin backend
   // currently enables the caching wrapper for every datasource instance
   cachingEnabled?: boolean;
