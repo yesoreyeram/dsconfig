@@ -9,6 +9,8 @@ import (
 	sdkschema "github.com/grafana/grafana-plugin-sdk-go/experimental/pluginschema"
 )
 
+//go:generate go test -generateArtifacts -run TestSchemaConformance ./...
+
 // TargetAPIVersion is the API version this schema applies to.
 const TargetAPIVersion = dsconfig.TargetAPIVersion
 
@@ -52,7 +54,7 @@ func SettingsExamples() *sdkschema.SettingsExamples {
 							"githubPlan":       string(LicenseTypeBasic),
 						},
 						"secureJsonData": map[string]any{
-							"accessToken": "",
+							string(SecureJsonDataKeyAccessToken): "",
 						},
 					},
 				},
@@ -67,7 +69,7 @@ func SettingsExamples() *sdkschema.SettingsExamples {
 							"githubPlan":       string(LicenseTypeBasic),
 						},
 						"secureJsonData": map[string]any{
-							"accessToken": "github_pat_XXXXXXXXXXXXXXXXXXXXXX",
+							string(SecureJsonDataKeyAccessToken): "github_pat_XXXXXXXXXXXXXXXXXXXXXX",
 						},
 					},
 				},
@@ -84,7 +86,7 @@ func SettingsExamples() *sdkschema.SettingsExamples {
 							"installationId":   "12345678",
 						},
 						"secureJsonData": map[string]any{
-							"privateKey": "-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----",
+							string(SecureJsonDataKeyPrivateKey): "-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----",
 						},
 					},
 				},
@@ -99,7 +101,7 @@ func SettingsExamples() *sdkschema.SettingsExamples {
 							"githubPlan":       string(LicenseTypeEnterpriseCloud),
 						},
 						"secureJsonData": map[string]any{
-							"accessToken": "github_pat_XXXXXXXXXXXXXXXXXXXXXX",
+							string(SecureJsonDataKeyAccessToken): "github_pat_XXXXXXXXXXXXXXXXXXXXXX",
 						},
 					},
 				},
@@ -115,7 +117,7 @@ func SettingsExamples() *sdkschema.SettingsExamples {
 							"githubUrl":        "https://github.example.com",
 						},
 						"secureJsonData": map[string]any{
-							"accessToken": "github_pat_XXXXXXXXXXXXXXXXXXXXXX",
+							string(SecureJsonDataKeyAccessToken): "github_pat_XXXXXXXXXXXXXXXXXXXXXX",
 						},
 					},
 				},
@@ -133,7 +135,7 @@ func SettingsExamples() *sdkschema.SettingsExamples {
 							"installationId":   "12345678",
 						},
 						"secureJsonData": map[string]any{
-							"privateKey": "-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----",
+							string(SecureJsonDataKeyPrivateKey): "-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----",
 						},
 					},
 				},
@@ -145,7 +147,7 @@ func SettingsExamples() *sdkschema.SettingsExamples {
 					Value: map[string]any{
 						"jsonData": map[string]any{},
 						"secureJsonData": map[string]any{
-							"accessToken": "github_pat_XXXXXXXXXXXXXXXXXXXXXX",
+							string(SecureJsonDataKeyAccessToken): "github_pat_XXXXXXXXXXXXXXXXXXXXXX",
 						},
 					},
 				},

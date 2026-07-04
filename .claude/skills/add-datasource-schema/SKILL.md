@@ -35,11 +35,23 @@ README.
 
 ## 3. config.ts / config.go
 
-Export exactly `RootConfig` (blank object if no root fields — never null), `JsonDataConfig`
-(json-tagged storage keys), and `SecureJsonDataConfig` (array of secret key names, no tagged
-struct). In Go add enum-like constants for discriminators and
-`LoadConfig(backend.DataSourceInstanceSettings)` mirroring the plugin's `LoadSettings`
-(legacy fallbacks, lenient parsing).
+`config.ts` exports exactly `RootConfig` (blank object if no root fields — never null),
+`JsonDataConfig` (all jsonData fields keyed by raw storage names), and `SecureJsonDataConfig`
+(array of secret key names).
+
+`config.go` exports a **flat `Config` struct** mirroring the plugin's upstream backend `Settings`
+(`pkg/models/settings.go`) verbatim — same fields, same json tags, same custom `UnmarshalJSON` if
+upstream has one — plus a `Secrets map[SecureJsonDataKey]string`. **Only carry root-level fields
+(`URL`, `BasicAuth`, `User`, …) on `Config` when the plugin's backend actually reads them**; most
+datasources ignore root fields and should omit them. If included, tag them `json:"-"`. Also add
+`SecureJsonDataKey` (strict string alias) with typed constants for each secret key, enum-like
+constants for discriminator fields, and `LoadConfig(ctx context.Context, backend.DataSourceInstanceSettings)`
+mirroring `LoadSettings` (legacy fallbacks, lenient parsing, conditional int64 conversions) with
+contextual logging via `backend.Logger.FromContext(ctx)`. `LoadConfig` internally runs the full parse → `ApplyDefaults` → `Validate` sequence and returns a
+fully-defaulted, validated `Config`. Keep `(*Config).ApplyDefaults()` (curated editor-parity
+defaults on zero-valued discriminators) and `(Config).Validate() error` (runtime contract check)
+exported as separate methods so callers that assemble a `Config` outside of `LoadConfig` can still
+invoke them individually. Document the internal three-phase sequence in the entry README.
 
 ## 4. schema.go + schema_test.go
 

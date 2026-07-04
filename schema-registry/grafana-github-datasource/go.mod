@@ -3,9 +3,16 @@ module github.com/grafana/dsconfig/schema-registry/grafana-github-datasource
 go 1.26.4
 
 require (
-	github.com/grafana/dsconfig/dsconfig v0.0.0
+	github.com/grafana/dsconfig/dsconfig v0.0.7
 	github.com/grafana/grafana-plugin-sdk-go v0.292.1
 	k8s.io/kube-openapi v0.0.0-20260624041617-8f3fa4921821
+)
+
+require (
+	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
+	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
+	github.com/stretchr/testify v1.11.1 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
 require (
@@ -42,6 +49,7 @@ require (
 	github.com/google/gnostic-models v0.7.1 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
+	github.com/grafana/dsconfig/schema v0.0.0
 	github.com/grafana/otel-profiling-go v0.6.0 // indirect
 	github.com/grafana/pyroscope-go/godeltaprof v0.1.11 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus v1.1.0 // indirect
@@ -100,3 +108,5 @@ require (
 )
 
 replace github.com/grafana/dsconfig/dsconfig => ../../dsconfig
+
+replace github.com/grafana/dsconfig/schema => ../../schema

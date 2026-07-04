@@ -5,10 +5,12 @@ Declarative configuration schema for the [GitHub datasource plugin](https://gith
 | File | Purpose |
 | --- | --- |
 | [`dsconfig.json`](dsconfig.json) | dsconfig v1 schema — single source of truth for all config fields, groups, effects, and instructions |
-| [`config.ts`](config.ts) | TypeScript models: `RootConfig`, `JsonDataConfig`, `SecureJsonDataConfig` |
-| [`config.go`](config.go) | Go models (`RootConfig`, `JsonDataConfig`, `SecureJsonDataConfig`) plus the `LoadConfig` utility |
+| [`settings.ts`](settings.ts) | TypeScript models: `RootConfig`, `JsonDataConfig`, `SecureJsonDataConfig` |
+| [`settings.go`](settings.go) | Go `Config` model (flat: jsonData fields + Secrets), `PluginID`, `SecureJsonDataConfig`, and the `LoadConfig` utility |
 | [`schema.go`](schema.go) | k8s-style SDK plugin schema: embeds `dsconfig.json`, converts it via `dsconfig.NewSDKSchema`, and defines `SettingsExamples` for each auth/connection variant |
-| [`schema_test.go`](schema_test.go) | Guards the schema bundle (secure values, jsonData spec, examples shape) and `LoadConfig` behavior |
+| [`settings_test.go`](settings_test.go) | Table tests for `LoadConfig`, `ApplyDefaults`, and `Validate` |
+| [`conformance_test.go`](conformance_test.go) | Runs `schema.RunPluginTests` — the shared dsconfig conformance suite — against `dsconfig.json` |
+| [`schema.gen.json`](schema.gen.json), [`settings.gen.json`](settings.gen.json), [`settings.examples.gen.json`](settings.examples.gen.json) | Committed schema artifacts (regenerate with `go generate ./...`) |
 | [`go.mod`](go.mod) | Standalone Go module (`replace`d onto the sibling `dsconfig` module; wired into the repo `go.work`) |
 
 ## Sources researched
@@ -74,9 +76,10 @@ types come from libraries/SDKs rather than the plugin itself:
 | REST / GraphQL clients the settings feed into (`WithEnterpriseURLs`, `NewEnterpriseClient`) | — | `github.com/google/go-github` / `github.com/shurcooL/githubv4` |
 | `LicenseType` has **no backend equivalent** — `githubPlan` exists only in the frontend types | — | — |
 
-The models in this entry (`config.ts`, `config.go`) flatten that spread into the three canonical
-types (`RootConfig`, `JsonDataConfig`, `SecureJsonDataConfig`); `LicenseType`
-constants in `config.go` are derived from the frontend union type since the backend defines none.
+The models in this entry flatten that spread into a single Go `Config` type (root fields + jsonData
+fields + Secrets) plus `SecureJsonDataConfig`; `settings.ts` still exposes the three canonical
+TypeScript types (`RootConfig`, `JsonDataConfig`, `SecureJsonDataConfig`). `LicenseType` constants
+in `settings.go` are derived from the frontend union type since the backend defines none.
 
 ## Modeling decisions
 
@@ -85,7 +88,7 @@ constants in `config.go` are derived from the frontend union type since the back
 - **Help drawer**: the editor's top-level "Access Token & Permissions" `Collapse` is attached as the `help` drawer of `secureJsonData_accessToken`, with the markdown preserved verbatim (including upstream typos — see below).
 - **Secure Socks Proxy excluded**: the editor conditionally renders `SecureSocksProxySettings` (writing `jsonData.enableSecureSocksProxy`) when the Grafana instance has `secureSocksDSProxyEnabled`, and both backend auth paths honor it. The field is deliberately omitted from this registry entry.
 - **Field ID naming convention**: IDs are prefixed with their storage target for easy discoverability — `root_`, `jsonData_`, or `secureJsonData_` (and `virtual_` for virtual fields, which have no storage target) — followed by the camelCase storage key, e.g. `jsonData_appId`, `secureJsonData_accessToken`. The `key` property keeps the plugin's raw storage key (`appId`) — `id` is the schema reference, `key` is the storage contract.
-- **`RootConfig` is a blank object**: the plugin stores nothing at the root level (`url`, `basicAuth`, etc. unused), so the root type marshals to `{}` rather than null.
+- **Flat `Config` in Go**: `settings.go` collapses jsonData fields and decrypted secrets onto a single `Config` struct (mirroring the upstream `Settings` in `pkg/models/settings.go` verbatim, json tags included). Root-level datasource fields (`url`, `basicAuth`, etc.) are not carried because the plugin does not use them. `settings.ts` keeps the three canonical TS types.
 - **`SecureJsonDataConfig` is a key list**: secure values are write-only, so the secure type is just the array of secret key names (`accessToken`, `privateKey`); consumers read `secureJsonFields` to see what is configured.
 
 ## SDK plugin schema and k8s-style examples (`schema.go`)
@@ -111,15 +114,35 @@ the empty string `""` — carries an empty `accessToken` to show what must be fi
 | `githubAppEnterpriseServer` | GitHub App | Enterprise Server (`githubUrl`) | `privateKey` |
 | `legacyAccessTokenOnly` | Legacy: token with no auth type | GitHub.com | `accessToken` |
 
-## `LoadConfig` utility (`config.go`)
+## `LoadConfig` utility (`settings.go`)
 
-`LoadConfig(settings backend.DataSourceInstanceSettings) (Config, error)` parses a datasource
-instance's settings into a `Config` — `Root` (`RootConfig`), `JSONData` (`JsonDataConfig`),
-decrypted `Secrets` by key, and `ConfiguredSecureKeys` (which of `SecureJsonDataKeys` are present).
-It mirrors the plugin's `LoadSettings` (`pkg/models/settings.go`), including the legacy fallback that
-defaults `selectedAuthType` to `personal-access-token` when only an `accessToken` is stored, and the
-lenient string-or-number parsing of `appId`/`installationId` via `AppIdInt64()` /
-`InstallationIdInt64()`.
+`LoadConfig(ctx context.Context, settings backend.DataSourceInstanceSettings) (Config, error)` runs
+the full three-phase load flow on a datasource instance's settings and returns a fully-defaulted,
+validated `Config`:
+
+1. **Parse** — unmarshal jsonData into `Config` (the `Config.UnmarshalJSON` normalizes the legacy
+   string-or-number `appId` / `installationId`), copy decrypted secrets into `Secrets`, run the
+   upstream legacy fallback that promotes a lone `accessToken` to `personal-access-token`, and — under
+   `github-app` auth only — parse `AppIdInt64` / `InstallationIdInt64`.
+2. **`ApplyDefaults`** — fill a curated set of zero-valued discriminators with the same defaults
+   the editor writes for a fresh datasource (`SelectedAuthType=AuthTypePAT`,
+   `GithubPlan=LicenseTypeBasic`).
+3. **`Validate`** — enforce the runtime contract (auth method + its required inputs, and
+   `githubUrl` when the plan is Enterprise Server). Errors are joined so every problem surfaces at
+   once.
+
+Everything is logged via `backend.Logger.FromContext(ctx)` with `datasource_uid`,
+`datasource_name`, and `plugin` labels so log lines carry request context.
+
+This is the intended shape for the plugin's own upstream `LoadSettings` to sync to: a load
+returns a config that is safe to use, or an error explaining why it isn't.
+
+### Direct access to individual phases
+
+`(*Config).ApplyDefaults()` and `(Config).Validate() error` are still exported for callers that
+want to compose them themselves (e.g. provisioning preview, schema-example round-trip, tests
+that need to distinguish parse-level from policy-level errors). Skip them by never calling
+`LoadConfig` in those flows — assemble a `Config` directly.
 
 ## Potential bugs and discrepancies found upstream
 
@@ -139,5 +162,5 @@ lenient string-or-number parsing of `appId`/`installationId` via `AppIdInt64()` 
 - `dsconfig.ParseAndResolveSchemaJSON` + `Schema.Validate()` (Go validator in this repo) — passes.
 - JSON Schema validation against [`dsconfig/schema.json`](../../dsconfig/schema.json) (draft 2020-12, `additionalProperties: false`) — passes.
 - `go test ./...` on this module — passes (schema bundle shape, secure values, examples, `LoadConfig` incl. legacy fallback and id parsing).
-- `config.go`/`schema.go`: `go build`, `go vet`, `gofmt` — clean.
-- `config.ts`: `tsc --noEmit --strict` — clean.
+- `settings.go`/`schema.go`: `go build`, `go vet`, `gofmt` — clean.
+- `settings.ts`: `tsc --noEmit --strict` — clean.

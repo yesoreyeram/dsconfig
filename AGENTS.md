@@ -26,7 +26,7 @@ Each entry is a standalone Go module:
 schema-registry/<plugin_id>/
 ├── dsconfig.json    # dsconfig v1 schema — the single source of truth
 ├── config.ts        # TypeScript models: RootConfig, JsonDataConfig, SecureJsonDataConfig
-├── config.go        # Go models (same three types) + LoadConfig utility
+├── config.go        # Flat Go Config (jsonData + Secrets; root fields only if used) + LoadConfig utility
 ├── schema.go        # k8s-style SDK PluginSchema: embeds dsconfig.json + SettingsExamples
 ├── schema_test.go   # Guards the schema bundle shape and LoadConfig behavior
 ├── go.mod / go.sum  # module github.com/grafana/dsconfig/schema-registry/<plugin_id>
@@ -92,24 +92,55 @@ Validate against `dsconfig/schema.json` (`$schema` is required and must be the c
 
 ## Step 3 — Author `config.ts` and `config.go`
 
-Both files must export exactly three config types, with doc comments citing the upstream sources:
+`config.ts` must export exactly three config types (with doc comments citing upstream sources):
 
 - **`RootConfig`** — root-level (top-level datasource settings) fields only. If the plugin stores
-  nothing at root, it is a **blank object** (`Record<string, never>` / `struct{}`), never null.
-- **`JsonDataConfig`** — all `jsonData` fields (including frontend-only and backend-only ones),
-  json-tagged in Go with the raw storage keys. Mark frontend-only/backend-only fields in comments.
-- **`SecureJsonDataConfig`** — an **array of secret key names**, not a json-tagged struct
-  (secure values are write-only). In Go, provide the key list as a `var` (e.g.
-  `SecureJsonDataKeys`).
+  nothing at root, it is a **blank object** (`Record<string, never>`), never null.
+- **`JsonDataConfig`** — all `jsonData` fields (including frontend-only and backend-only ones)
+  keyed by the raw storage names. Mark frontend-only/backend-only fields in comments.
+- **`SecureJsonDataConfig`** — an **array of secret key names**, not an object with secret values
+  (secure values are write-only).
 
-`config.go` additionally provides:
+`config.go` exports:
 
-- **`LoadConfig(settings backend.DataSourceInstanceSettings) (Config, error)`** — parses instance
-  settings into a `Config` wrapper (`Root`, `JSONData`, decrypted `Secrets` by key,
-  `ConfiguredSecureKeys`). It must mirror the plugin's own `LoadSettings` behavior, including
-  legacy fallbacks and lenient parsing (replicate the plugin's helper semantics, e.g.
-  string-or-number ID parsing).
-- Enum-like `string` types with constants for discriminator fields (auth type, license/plan …),
+- **A flat `Config` struct** that mirrors the plugin's upstream backend `Settings`
+  (`pkg/models/settings.go`) **verbatim** — same fields, same json tags, same custom
+  `UnmarshalJSON` if the upstream has one. Plus a `Secrets map[SecureJsonDataKey]string` for the
+  decrypted `secureJsonData`. **Only carry root-level datasource fields (`URL`, `BasicAuth`, `User`,
+  etc.) on `Config` when the plugin's own backend actually reads them.** Most datasources ignore
+  root fields entirely (e.g. GitHub authenticates via jsonData + secrets and never touches
+  `settings.URL`); in that case omit them. If the plugin does read root fields, add only the ones
+  it uses, tagged `json:"-"` to avoid jsonData collisions.
+- **`SecureJsonDataKey`** — a strict string-alias type with typed constants for every secret key
+  the plugin stores (`SecureJsonDataKeyAccessToken`, `SecureJsonDataKeyPrivateKey`, …), plus a
+  `SecureJsonDataConfig = []SecureJsonDataKey` list variable (e.g. `SecureJsonDataKeys`).
+- **`LoadConfig(ctx context.Context, settings backend.DataSourceInstanceSettings) (Config, error)`**
+  — runs the full three-phase load flow and returns a fully-defaulted, validated `Config`:
+  1. **Parse** — unmarshal `settings.JSONData` into `Config`, mirror the plugin's own
+     `LoadSettings` verbatim for parsing (legacy fallbacks, lenient string-or-number ID parsing,
+     conditional int64 conversions under specific auth modes), and copy decrypted secrets into
+     `Secrets`.
+  2. **ApplyDefaults** — call `(*Config).ApplyDefaults` on the parsed config.
+  3. **Validate** — call `(Config).Validate`; return its error if any.
+
+  Use `backend.Logger.FromContext(ctx)` for contextual logging on entry, on each error, and on
+  successful completion. Because this becomes the intended shape for the plugin's upstream
+  `LoadSettings` to sync to, treat any parse divergence from upstream as a bug in this entry.
+- **`(*Config).ApplyDefaults()`** — hard-coded editor-parity defaults for a **curated list** of
+  zero-valued fields only (e.g. discriminators like `selectedAuthType` and `githubPlan`). Keep
+  it exported so callers that assemble a `Config` directly can still get editor-parity. Never
+  blanket-apply every schema default — that would clobber intentional zero values.
+- **`(Config).Validate() error`** — checks the runtime contract that the plugin requires (auth
+  method + its required inputs, plan/URL consistency, …). Errors are joined so callers see
+  every problem at once. Keep it exported so callers can validate a `Config` they assembled
+  themselves.
+
+Even though `LoadConfig` calls both helpers internally, keep them exported as separate methods:
+callers that build a `Config` outside of `LoadConfig` (provisioning preview, tests that need to
+distinguish parse-level from policy-level errors, schema-example round-trip tools) still need
+to invoke them individually. Document the internal `parse → ApplyDefaults → Validate` sequence
+in the entry README so consumers understand what `LoadConfig` guarantees.
+- **Enum-like `string` types with constants** for discriminator fields (auth type, license/plan …),
   mirroring the plugin's own constants where they exist.
 
 ## Step 4 — Author `schema.go` (k8s-style SDK schema)
