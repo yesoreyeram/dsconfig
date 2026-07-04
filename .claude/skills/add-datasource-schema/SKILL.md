@@ -79,7 +79,10 @@ carries valid secure keys, and `LoadConfig` behavior per auth method.
 
 ## 5. Wire + validate
 
-Per-entry `go.mod` (replace `../../dsconfig`), add to root `go.work`. All must pass:
+Registry entries share a single `registry/go.mod` (module `github.com/grafana/dsconfig/registry`,
+with `replace ../dsconfig` and `replace ../schema`); a new entry is just a subpackage — no new
+`go.mod`, no `go.work` edit. Run `go mod tidy` inside `registry/` if new imports were added.
+All must pass:
 Go validator on dsconfig.json, strict JSON Schema check against `dsconfig/schema.json`,
 `go build/vet/gofmt/test` in the module, `tsc --noEmit --strict` on settings.ts, and the existing
 workspace modules still build.

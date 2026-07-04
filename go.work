@@ -2,6 +2,6 @@ go 1.26.4
 
 use (
 	./dsconfig
-	./registry/grafana-github-datasource
+	./registry
 	./schema
 )

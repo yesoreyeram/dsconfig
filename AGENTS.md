@@ -15,23 +15,27 @@ A Claude Code skill wrapping this workflow is available at
 | --- | --- |
 | `dsconfig/` | The dsconfig schema SDK: Go types (`schema.go`), validator, `baseFields` packs, dsconfig→SDK converter (`convert.go`), and the JSON Schema (`schema.json`) every `dsconfig.json` must satisfy |
 | `schema/` | Conformance test suite and artifact helpers plugins import |
-| `registry/<plugin_id>/` | One entry per datasource plugin (see structure below) |
-| `go.work` | Workspace — every registry entry module must be added here |
+| `registry/` | Single Go module (`github.com/grafana/dsconfig/registry`) containing every plugin entry as a subpackage; owns `go.mod`/`go.sum` shared across all entries |
+| `registry/<plugin_id>/` | One entry per datasource plugin (Go subpackage of the `registry` module) — see structure below |
+| `go.work` | Workspace — includes `./dsconfig`, `./schema`, and `./registry` |
 
 ## Registry entry structure
 
-Each entry is a standalone Go module:
+Each entry is a subpackage of the single `registry` module (no per-entry `go.mod`):
 
 ```
-registry/<plugin_id>/
-├── dsconfig.json    # dsconfig v1 schema — the single source of truth
-├── settings.ts        # TypeScript models: RootConfig, JsonDataConfig, SecureJsonDataConfig
-├── settings.go        # Flat Go Config (jsonData + DecryptedSecureJSONData; root fields only if used) + LoadConfig utility
-├── schema.go        # k8s-style SDK PluginSchema: embeds dsconfig.json + SettingsExamples
-├── schema_test.go   # Guards the schema bundle shape and LoadConfig behavior
-├── go.mod / go.sum  # module github.com/grafana/dsconfig/registry/<plugin_id>
-└── README.md        # Research notes, field inventory, discrepancies, type provenance
+registry/
+├── go.mod / go.sum         # module github.com/grafana/dsconfig/registry (shared)
+└── <plugin_id>/
+    ├── dsconfig.json       # dsconfig v1 schema — the single source of truth
+    ├── settings.ts         # TypeScript models: RootConfig, JsonDataConfig, SecureJsonDataConfig
+    ├── settings.go         # Flat Go Config (jsonData + DecryptedSecureJSONData; root fields only if used) + LoadConfig utility
+    ├── schema.go           # k8s-style SDK PluginSchema: embeds dsconfig.json + SettingsExamples
+    ├── schema_test.go      # Guards the schema bundle shape and LoadConfig behavior
+    └── README.md           # Research notes, field inventory, discrepancies, type provenance
 ```
+
+Import path for an entry: `github.com/grafana/dsconfig/registry/<plugin_id>`.
 
 ## Step 1 — Capture the inputs (research phase)
 
@@ -174,11 +178,15 @@ in the entry README so consumers understand what `LoadConfig` guarantees.
   placeholders elsewhere — use the correct secret format, e.g. a proper PEM header for keys).
 - Include a legacy example if the plugin has a legacy storage shape.
 
-## Step 5 — Wire the module and validate
+## Step 5 — Wire and validate
 
-1. `go.mod`: module `github.com/grafana/dsconfig/registry/<plugin_id>`, with
-   `replace github.com/grafana/dsconfig/dsconfig => ../../dsconfig`; run `go mod tidy`.
-2. Add `use ./registry/<plugin_id>` to the repo `go.work`.
+The `registry/` module already exists; a new entry is just a new subdirectory. There is no
+per-entry `go.mod`, no `go.work` edit, and no `replace` directive to add.
+
+1. Create `registry/<plugin_id>/` with the files above (each entry is its own Go package —
+   package name is a language-safe form of the plugin ID, e.g. `githubdatasource` for
+   `grafana-github-datasource`).
+2. From `registry/`, run `go mod tidy` if the new entry pulled in new imports.
 3. `schema_test.go` must assert at minimum: `NewSchema()` succeeds; `secureJsonData` is **not** in
    the settings spec; `secureValues` match the secure key list; every expected `jsonData` property
    is in the spec; the `""` default example exists; every example has `jsonData` and a non-empty
@@ -188,7 +196,7 @@ in the entry README so consumers understand what `LoadConfig` guarantees.
    - `dsconfig.ParseAndResolveSchemaJSON` + `Validate()` on `dsconfig.json`;
    - JSON Schema validation against `dsconfig/schema.json` (draft 2020-12, strict —
      `additionalProperties: false`);
-   - `go build ./... && go vet ./... && gofmt -l . && go test ./...` in the entry module;
+   - `go build ./... && go vet ./... && gofmt -l . && go test ./...` inside `registry/`;
    - `tsc --noEmit --strict` on `settings.ts`;
    - the pre-existing `dsconfig` and `schema` workspace modules still build.
 

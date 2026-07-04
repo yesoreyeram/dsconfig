@@ -1,4 +1,4 @@
-module github.com/grafana/dsconfig/registry/grafana-github-datasource
+module github.com/grafana/dsconfig/registry
 
 go 1.26.4
 
@@ -107,6 +107,6 @@ require (
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )
 
-replace github.com/grafana/dsconfig/dsconfig => ../../dsconfig
+replace github.com/grafana/dsconfig/dsconfig => ../dsconfig
 
-replace github.com/grafana/dsconfig/schema => ../../schema
+replace github.com/grafana/dsconfig/schema => ../schema
