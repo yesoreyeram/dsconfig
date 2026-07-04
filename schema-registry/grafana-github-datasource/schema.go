@@ -42,7 +42,7 @@ func NewSchema() (*sdkschema.PluginSchema, error) {
 func SettingsExamples() *sdkschema.SettingsExamples {
 	return &sdkschema.SettingsExamples{
 		Examples: map[string]*spec3.Example{
-			"default": {
+			"": {
 				ExampleProps: spec3.ExampleProps{
 					Summary:     "Default configuration",
 					Description: "The defaults a new datasource starts with: personal access token authentication against GitHub.com (Free, Pro & Team). Only secureJsonData.accessToken (empty here) needs to be filled in to get a working datasource.",

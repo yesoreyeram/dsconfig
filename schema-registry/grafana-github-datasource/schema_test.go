@@ -48,8 +48,8 @@ func TestNewSchema(t *testing.T) {
 	if schema.SettingsExamples == nil || len(schema.SettingsExamples.Examples) == 0 {
 		t.Fatal("SettingsExamples is empty")
 	}
-	if _, ok := schema.SettingsExamples.Examples["default"]; !ok {
-		t.Error("SettingsExamples has no \"default\" example")
+	if _, ok := schema.SettingsExamples.Examples[""]; !ok {
+		t.Error("SettingsExamples has no default (empty-string key) example")
 	}
 	validSecureKeys := map[string]bool{}
 	for _, key := range SecureJsonDataKeys {

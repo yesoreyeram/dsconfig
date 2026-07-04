@@ -67,12 +67,12 @@ embedded `dsconfig.json`: root fields plus a nested `jsonData` object become the
 `SettingsExamples()` provides the default configuration plus one k8s-style example per
 authentication type and connection variant. Each example is a full instance-settings object with the
 plugin configuration nested under `jsonData` and the relevant write-only secrets under
-`secureJsonData` (placeholder values to be replaced with real secrets; the `default` example carries
-an empty `accessToken` to show what must be filled in):
+`secureJsonData` (placeholder values to be replaced with real secrets; the default example — keyed by
+the empty string `""` — carries an empty `accessToken` to show what must be filled in):
 
 | Example | Auth | Connection | `secureJsonData` |
 | --- | --- | --- | --- |
-| `default` | Personal Access Token (schema defaults) | GitHub.com (Free, Pro & Team) | `accessToken` (empty) |
+| `""` (default) | Personal Access Token (schema defaults) | GitHub.com (Free, Pro & Team) | `accessToken` (empty) |
 | `personalAccessToken` | Personal Access Token | GitHub.com (Free, Pro & Team) | `accessToken` |
 | `githubApp` | GitHub App | GitHub.com (Free, Pro & Team) | `privateKey` |
 | `enterpriseCloud` | Personal Access Token | Enterprise Cloud (same endpoints as GitHub.com) | `accessToken` |
