@@ -47,6 +47,37 @@ All labels, placeholders, tooltips, options, and help text were taken verbatim f
 
 - **`cachingEnabled`** has no editor UI. It exists in the backend `Settings` model only (see "Potential bugs" below).
 
+## Where the types are defined
+
+The configuration types are spread across the plugin and its dependencies — some fields and base
+types come from libraries/SDKs rather than the plugin itself:
+
+### Frontend (TypeScript)
+
+| Type / field | Defined in | Package |
+| --- | --- | --- |
+| `GitHubDataSourceOptions` (jsonData), `GitHubAuthType`, `GitHubLicenseType`, `GitHubSecureJsonDataKeys`, `GitHubSecureJsonData` | `src/types/config.ts` | plugin ([grafana/github-datasource](https://github.com/grafana/github-datasource)) |
+| `DataSourceJsonData` (base interface `GitHubDataSourceOptions` extends: `authType`, `defaultRegion`, `profile`, `manageAlerts`, …) | `packages/grafana-data/src/types/datasource.ts` | `@grafana/data` `12.4.2` (npm) |
+| `DataSourcePluginOptionsEditorProps`, `onUpdateDatasourceJsonDataOption`, `onUpdateDatasourceSecureJsonDataOption` | `packages/grafana-data` | `@grafana/data` `12.4.2` (npm) |
+| `SecureSocksProxyConfig` / `enableSecureSocksProxy` jsonData field (excluded from this entry) | `packages/grafana-ui/src/components/DataSourceSettings/SecureSocksProxySettings.tsx` | `@grafana/ui` `12.4.2` (npm, grafana/grafana `v12.4.2`) |
+| `ConfigSection`, `DataSourceDescription` (editor layout/intro, no storage fields) | `src/components/ConfigEditor/` | `@grafana/plugin-ui` `0.13.1` (npm) |
+
+### Backend (Go)
+
+| Type / field | Defined in | Package |
+| --- | --- | --- |
+| `Settings` (jsonData + decrypted secrets), `AuthType` (`AuthTypePAT`, `AuthTypeGithubApp`), `LoadSettings`, `rawMessageToInt64` | `pkg/models/settings.go` | plugin ([grafana/github-datasource](https://github.com/grafana/github-datasource)) |
+| `backend.DataSourceInstanceSettings` (carries `JSONData`, `DecryptedSecureJSONData`, and root fields like `URL`, `BasicAuthEnabled` — unused by this plugin) | `backend/common.go` | `github.com/grafana/grafana-plugin-sdk-go` `v0.292.1` |
+| `httpclient.Options` (timeouts, TLS, `ProxyOptions`) consumed when building the GitHub clients | `backend/httpclient` | `github.com/grafana/grafana-plugin-sdk-go` `v0.292.1` |
+| `proxy.New(...).SecureSocksProxyEnabled()` (secure socks proxy wiring) | `backend/proxy` | `github.com/grafana/grafana-plugin-sdk-go` `v0.292.1` |
+| GitHub App installation transport (`ghinstallation.New`, JWT signing with `privateKey`, `itr.BaseURL`) | — | `github.com/bradleyfalzon/ghinstallation/v2` |
+| REST / GraphQL clients the settings feed into (`WithEnterpriseURLs`, `NewEnterpriseClient`) | — | `github.com/google/go-github` / `github.com/shurcooL/githubv4` |
+| `LicenseType` has **no backend equivalent** — `githubPlan` exists only in the frontend types | — | — |
+
+The models in this entry (`config.ts`, `config.go`) flatten that spread into the three canonical
+types (`RootConfig`, `JsonDataConfig`, `SecureJsonDataConfig`); `LicenseType`
+constants in `config.go` are derived from the frontend union type since the backend defines none.
+
 ## Modeling decisions
 
 - **Virtual license selector**: `onLicenseChange` writes `githubPlan` and clears `githubUrl` unless "Enterprise Server" is selected. This multi-field write is captured as `effects` on the virtual `virtual_selectedLicense` field; `jsonData_githubPlan` is tagged `managed-by:virtual_selectedLicense` and has no UI of its own.
