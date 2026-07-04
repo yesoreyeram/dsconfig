@@ -6,11 +6,11 @@
     "docURL": "https://grafana.com/docs/plugins/grafana-github-datasource",
     "fields": [
         {
-            "id": "github_plan",
-            "key": "githubPlan",
+            "id": "selected_license",
+            "key": "selectedLicense",
             "label": "GitHub License Type",
             "valueType": "string",
-            "target": "jsonData",
+            "kind": "virtual",
             "defaultValue": "github-basic",
             "validations": [
                 {
@@ -39,13 +39,50 @@
                     }
                 ]
             },
+            "storage": {
+                "type": "computed",
+                "read": "jsonData.githubPlan == 'github-enterprise-server' || jsonData.githubUrl != '' ? 'github-enterprise-server' : (jsonData.githubPlan != '' ? jsonData.githubPlan : 'github-basic')"
+            },
             "effects": [
                 {
-                    "when": "value != 'github-enterprise-server'",
+                    "when": "value == 'github-basic'",
                     "set": {
+                        "github_plan": "github-basic",
                         "github_url": ""
                     }
+                },
+                {
+                    "when": "value == 'github-enterprise-cloud'",
+                    "set": {
+                        "github_plan": "github-enterprise-cloud",
+                        "github_url": ""
+                    }
+                },
+                {
+                    "when": "value == 'github-enterprise-server'",
+                    "set": {
+                        "github_plan": "github-enterprise-server"
+                    }
                 }
+            ]
+        },
+        {
+            "id": "github_plan",
+            "key": "githubPlan",
+            "valueType": "string",
+            "target": "jsonData",
+            "validations": [
+                {
+                    "type": "allowedValues",
+                    "values": [
+                        "github-basic",
+                        "github-enterprise-cloud",
+                        "github-enterprise-server"
+                    ]
+                }
+            ],
+            "tags": [
+                "managed-by:selected_license"
             ]
         },
         {
@@ -55,7 +92,7 @@
             "valueType": "string",
             "target": "jsonData",
             "role": "endpoint.baseUrl",
-            "dependsOn": "github_plan == 'github-enterprise-server'",
+            "dependsOn": "selected_license == 'github-enterprise-server'",
             "requiredWhen": "github_plan == 'github-enterprise-server'",
             "ui": {
                 "component": "input",
@@ -173,7 +210,7 @@
             "order": 1,
             "optional": true,
             "fieldRefs": [
-                "github_plan",
+                "selected_license",
                 "github_url"
             ]
         },
@@ -224,7 +261,7 @@
             ]
         },
         {
-            "msg": "Datasources created before githubPlan was introduced may have jsonData.githubUrl set without a plan; the configuration editor treats any datasource with a non-empty githubUrl as 'github-enterprise-server', and falls back to 'github-basic' when neither githubPlan nor githubUrl is set.",
+            "msg": "Datasources created before githubPlan was introduced may have jsonData.githubUrl set without a plan; the configuration editor treats any datasource with a non-empty githubUrl as 'github-enterprise-server', and falls back to 'github-basic' when neither githubPlan nor githubUrl is set. This derivation is captured by the virtual selected_license field's computed read expression, and its effects capture the writes to githubPlan/githubUrl (githubUrl is cleared unless 'github-enterprise-server' is selected).",
             "tags": [
                 "legacy",
                 "connection"
