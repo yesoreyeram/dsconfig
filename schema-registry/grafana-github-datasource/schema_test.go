@@ -48,6 +48,13 @@ func TestNewSchema(t *testing.T) {
 	if schema.SettingsExamples == nil || len(schema.SettingsExamples.Examples) == 0 {
 		t.Fatal("SettingsExamples is empty")
 	}
+	if _, ok := schema.SettingsExamples.Examples["default"]; !ok {
+		t.Error("SettingsExamples has no \"default\" example")
+	}
+	validSecureKeys := map[string]bool{}
+	for _, key := range SecureJsonDataKeys {
+		validSecureKeys[key] = true
+	}
 	for name, ex := range schema.SettingsExamples.Examples {
 		value, ok := ex.Value.(map[string]any)
 		if !ok {
@@ -56,6 +63,16 @@ func TestNewSchema(t *testing.T) {
 		}
 		if _, ok := value["jsonData"].(map[string]any); !ok {
 			t.Errorf("example %q value has no jsonData object", name)
+		}
+		secure, ok := value["secureJsonData"].(map[string]any)
+		if !ok || len(secure) == 0 {
+			t.Errorf("example %q value has no secureJsonData object", name)
+			continue
+		}
+		for key := range secure {
+			if !validSecureKeys[key] {
+				t.Errorf("example %q uses unknown secureJsonData key %q (valid: %v)", name, key, SecureJsonDataKeys)
+			}
 		}
 	}
 }

@@ -64,19 +64,21 @@ schema Grafana's datasource API server serves as `{apiVersion}.json`, `v0alpha1`
 embedded `dsconfig.json`: root fields plus a nested `jsonData` object become the OpenAPI settings
 `spec`, secure fields become `secureValues`, and virtual fields are skipped.
 
-`SettingsExamples()` provides one k8s-style example per authentication type and connection variant,
-each a full instance-settings object with the plugin configuration nested under `jsonData`
-(secure values are write-only and never appear in examples — each description says which secret to
-provide separately):
+`SettingsExamples()` provides the default configuration plus one k8s-style example per
+authentication type and connection variant. Each example is a full instance-settings object with the
+plugin configuration nested under `jsonData` and the relevant write-only secrets under
+`secureJsonData` (placeholder values to be replaced with real secrets; the `default` example carries
+an empty `accessToken` to show what must be filled in):
 
-| Example | Auth | Connection |
-| --- | --- | --- |
-| `personalAccessToken` | Personal Access Token | GitHub.com (Free, Pro & Team) |
-| `githubApp` | GitHub App | GitHub.com (Free, Pro & Team) |
-| `enterpriseCloud` | Personal Access Token | Enterprise Cloud (same endpoints as GitHub.com) |
-| `enterpriseServer` | Personal Access Token | Enterprise Server (`githubUrl`) |
-| `githubAppEnterpriseServer` | GitHub App | Enterprise Server (`githubUrl`) |
-| `legacyAccessTokenOnly` | Legacy: token with no auth type | GitHub.com |
+| Example | Auth | Connection | `secureJsonData` |
+| --- | --- | --- | --- |
+| `default` | Personal Access Token (schema defaults) | GitHub.com (Free, Pro & Team) | `accessToken` (empty) |
+| `personalAccessToken` | Personal Access Token | GitHub.com (Free, Pro & Team) | `accessToken` |
+| `githubApp` | GitHub App | GitHub.com (Free, Pro & Team) | `privateKey` |
+| `enterpriseCloud` | Personal Access Token | Enterprise Cloud (same endpoints as GitHub.com) | `accessToken` |
+| `enterpriseServer` | Personal Access Token | Enterprise Server (`githubUrl`) | `accessToken` |
+| `githubAppEnterpriseServer` | GitHub App | Enterprise Server (`githubUrl`) | `privateKey` |
+| `legacyAccessTokenOnly` | Legacy: token with no auth type | GitHub.com | `accessToken` |
 
 ## `LoadConfig` utility (`config.go`)
 

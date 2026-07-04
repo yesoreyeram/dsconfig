@@ -34,22 +34,40 @@ func NewSchema() (*sdkschema.PluginSchema, error) {
 }
 
 // SettingsExamples returns k8s-style example configurations for the GitHub
-// datasource, covering each authentication type and connection (license)
-// variant the config editor supports. Each example value is a full instance
-// settings object with the plugin configuration nested under jsonData.
-// Secure values (accessToken, privateKey) are write-only and never part of
-// the settings spec; they are called out in each example's description.
+// datasource, covering the default configuration and each authentication
+// type and connection (license) variant the config editor supports. Each
+// example value is a full instance settings object with the plugin
+// configuration nested under jsonData and the relevant write-only secrets
+// under secureJsonData (placeholder values — replace them with real secrets).
 func SettingsExamples() *sdkschema.SettingsExamples {
 	return &sdkschema.SettingsExamples{
 		Examples: map[string]*spec3.Example{
-			"personalAccessToken": {
+			"default": {
 				ExampleProps: spec3.ExampleProps{
-					Summary:     "Personal Access Token (GitHub.com)",
-					Description: "Authenticate against GitHub.com (Free, Pro & Team) with a fine grained personal access token. The accessToken secure value must be provided separately.",
+					Summary:     "Default configuration",
+					Description: "The defaults a new datasource starts with: personal access token authentication against GitHub.com (Free, Pro & Team). Only secureJsonData.accessToken (empty here) needs to be filled in to get a working datasource.",
 					Value: map[string]any{
 						"jsonData": map[string]any{
 							"selectedAuthType": string(AuthTypePAT),
 							"githubPlan":       string(LicenseTypeBasic),
+						},
+						"secureJsonData": map[string]any{
+							"accessToken": "",
+						},
+					},
+				},
+			},
+			"personalAccessToken": {
+				ExampleProps: spec3.ExampleProps{
+					Summary:     "Personal Access Token (GitHub.com)",
+					Description: "Authenticate against GitHub.com (Free, Pro & Team) with a fine grained personal access token provided in secureJsonData.accessToken.",
+					Value: map[string]any{
+						"jsonData": map[string]any{
+							"selectedAuthType": string(AuthTypePAT),
+							"githubPlan":       string(LicenseTypeBasic),
+						},
+						"secureJsonData": map[string]any{
+							"accessToken": "github_pat_XXXXXXXXXXXXXXXXXXXXXX",
 						},
 					},
 				},
@@ -57,7 +75,7 @@ func SettingsExamples() *sdkschema.SettingsExamples {
 			"githubApp": {
 				ExampleProps: spec3.ExampleProps{
 					Summary:     "GitHub App (GitHub.com)",
-					Description: "Authenticate against GitHub.com as a GitHub App installation. appId and installationId may be JSON strings or numbers; the privateKey secure value must be provided separately.",
+					Description: "Authenticate against GitHub.com as a GitHub App installation. appId and installationId may be JSON strings or numbers; secureJsonData.privateKey is the app's complete private key PEM including the BEGIN/END lines.",
 					Value: map[string]any{
 						"jsonData": map[string]any{
 							"selectedAuthType": string(AuthTypeGithubApp),
@@ -65,17 +83,23 @@ func SettingsExamples() *sdkschema.SettingsExamples {
 							"appId":            "123456",
 							"installationId":   "12345678",
 						},
+						"secureJsonData": map[string]any{
+							"privateKey": "-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----",
+						},
 					},
 				},
 			},
 			"enterpriseCloud": {
 				ExampleProps: spec3.ExampleProps{
 					Summary:     "Personal Access Token (GitHub Enterprise Cloud)",
-					Description: "GitHub Enterprise Cloud uses the same API endpoints as GitHub.com, so no URL is configured; githubPlan only drives the config editor. The accessToken secure value must be provided separately.",
+					Description: "GitHub Enterprise Cloud uses the same API endpoints as GitHub.com, so no URL is configured; githubPlan only drives the config editor. The token is provided in secureJsonData.accessToken.",
 					Value: map[string]any{
 						"jsonData": map[string]any{
 							"selectedAuthType": string(AuthTypePAT),
 							"githubPlan":       string(LicenseTypeEnterpriseCloud),
+						},
+						"secureJsonData": map[string]any{
+							"accessToken": "github_pat_XXXXXXXXXXXXXXXXXXXXXX",
 						},
 					},
 				},
@@ -83,12 +107,15 @@ func SettingsExamples() *sdkschema.SettingsExamples {
 			"enterpriseServer": {
 				ExampleProps: spec3.ExampleProps{
 					Summary:     "Personal Access Token (GitHub Enterprise Server)",
-					Description: "On-prem GitHub Enterprise Server: the backend derives <githubUrl>/api/v3 (REST) and <githubUrl>/api/graphql (GraphQL). The accessToken secure value must be provided separately.",
+					Description: "On-prem GitHub Enterprise Server: the backend derives <githubUrl>/api/v3 (REST) and <githubUrl>/api/graphql (GraphQL). The token is provided in secureJsonData.accessToken.",
 					Value: map[string]any{
 						"jsonData": map[string]any{
 							"selectedAuthType": string(AuthTypePAT),
 							"githubPlan":       string(LicenseTypeEnterpriseServer),
 							"githubUrl":        "https://github.example.com",
+						},
+						"secureJsonData": map[string]any{
+							"accessToken": "github_pat_XXXXXXXXXXXXXXXXXXXXXX",
 						},
 					},
 				},
@@ -96,7 +123,7 @@ func SettingsExamples() *sdkschema.SettingsExamples {
 			"githubAppEnterpriseServer": {
 				ExampleProps: spec3.ExampleProps{
 					Summary:     "GitHub App (GitHub Enterprise Server)",
-					Description: "GitHub App installation on an on-prem GitHub Enterprise Server. The privateKey secure value must be provided separately.",
+					Description: "GitHub App installation on an on-prem GitHub Enterprise Server, with the app's private key PEM in secureJsonData.privateKey.",
 					Value: map[string]any{
 						"jsonData": map[string]any{
 							"selectedAuthType": string(AuthTypeGithubApp),
@@ -105,15 +132,21 @@ func SettingsExamples() *sdkschema.SettingsExamples {
 							"appId":            "123456",
 							"installationId":   "12345678",
 						},
+						"secureJsonData": map[string]any{
+							"privateKey": "-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----",
+						},
 					},
 				},
 			},
 			"legacyAccessTokenOnly": {
 				ExampleProps: spec3.ExampleProps{
 					Summary:     "Legacy: access token without an auth type",
-					Description: "Datasources created before selectedAuthType existed store only the accessToken secure value; the backend defaults them to personal-access-token.",
+					Description: "Datasources created before selectedAuthType existed store only secureJsonData.accessToken; the backend defaults them to personal-access-token.",
 					Value: map[string]any{
 						"jsonData": map[string]any{},
+						"secureJsonData": map[string]any{
+							"accessToken": "github_pat_XXXXXXXXXXXXXXXXXXXXXX",
+						},
 					},
 				},
 			},
