@@ -1,6 +1,6 @@
 ---
 name: add-datasource-schema
-description: Create or update a datasource configuration schema entry under schema-registry/<plugin_id>/ (dsconfig.json, config.ts, config.go, schema.go, tests, README). Use when asked to add a dsconfig schema for a Grafana datasource plugin, capture a plugin's config editor as a schema, or extend an existing schema-registry entry.
+description: Create or update a datasource configuration schema entry under schema-registry/<plugin_id>/ (dsconfig.json, settings.ts, settings.go, schema.go, tests, README). Use when asked to add a dsconfig schema for a Grafana datasource plugin, capture a plugin's config editor as a schema, or extend an existing schema-registry entry.
 ---
 
 # Add a datasource schema-registry entry
@@ -33,13 +33,13 @@ README.
 - `instructions`: max 6, tagged `llm`, auth guidance first — auth methods, minimal JSON payload
   per method, legacy interpretation, write-only secrets, connection/URL pitfalls.
 
-## 3. config.ts / config.go
+## 3. settings.ts / settings.go
 
-`config.ts` exports exactly `RootConfig` (blank object if no root fields — never null),
+`settings.ts` exports exactly `RootConfig` (blank object if no root fields — never null),
 `JsonDataConfig` (all jsonData fields keyed by raw storage names), and `SecureJsonDataConfig`
 (array of secret key names).
 
-`config.go` exports a **flat `Config` struct** mirroring the plugin's upstream backend `Settings`
+`settings.go` exports a **flat `Config` struct** mirroring the plugin's upstream backend `Settings`
 (`pkg/models/settings.go`) verbatim — same fields, same json tags, same custom `UnmarshalJSON` if
 upstream has one — plus a `Secrets map[SecureJsonDataKey]string`. **Only carry root-level fields
 (`URL`, `BasicAuth`, `User`, …) on `Config` when the plugin's backend actually reads them**; most
@@ -65,7 +65,7 @@ carries valid secure keys, and `LoadConfig` behavior per auth method.
 
 Per-entry `go.mod` (replace `../../dsconfig`), add to root `go.work`. All must pass:
 Go validator on dsconfig.json, strict JSON Schema check against `dsconfig/schema.json`,
-`go build/vet/gofmt/test` in the module, `tsc --noEmit --strict` on config.ts, and the existing
+`go build/vet/gofmt/test` in the module, `tsc --noEmit --strict` on settings.ts, and the existing
 workspace modules still build.
 
 ## 6. README.md

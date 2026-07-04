@@ -25,8 +25,8 @@ Each entry is a standalone Go module:
 ```
 schema-registry/<plugin_id>/
 ├── dsconfig.json    # dsconfig v1 schema — the single source of truth
-├── config.ts        # TypeScript models: RootConfig, JsonDataConfig, SecureJsonDataConfig
-├── config.go        # Flat Go Config (jsonData + Secrets; root fields only if used) + LoadConfig utility
+├── settings.ts        # TypeScript models: RootConfig, JsonDataConfig, SecureJsonDataConfig
+├── settings.go        # Flat Go Config (jsonData + Secrets; root fields only if used) + LoadConfig utility
 ├── schema.go        # k8s-style SDK PluginSchema: embeds dsconfig.json + SettingsExamples
 ├── schema_test.go   # Guards the schema bundle shape and LoadConfig behavior
 ├── go.mod / go.sum  # module github.com/grafana/dsconfig/schema-registry/<plugin_id>
@@ -40,7 +40,7 @@ Fidelity comes from reading the real sources, never from memory:
 1. **Clone the plugin repository** (e.g. `github.com/grafana/<plugin_id>`) and read:
    - the config editor component (usually `src/**/ConfigEditor.tsx`) — every label, placeholder,
      tooltip, option, section title, conditional render, and side-effecting change handler;
-   - the frontend config types (usually `src/types/config.ts` or `src/types.ts`);
+   - the frontend config types (usually `src/types/settings.ts` or `src/types.ts`);
    - the backend settings model (usually `pkg/models/settings.go`) and its `LoadSettings` —
      legacy fallbacks, lenient parsing, defaulting;
    - how each setting is **consumed** (HTTP client construction, URL derivation, auth wiring) —
@@ -90,9 +90,9 @@ Validate against `dsconfig/schema.json` (`$schema` is required and must be the c
   secureJsonData), legacy auth interpretation, write-only secure values (`secureJsonFields` for
   read-side), and connection/URL rules with known pitfalls.
 
-## Step 3 — Author `config.ts` and `config.go`
+## Step 3 — Author `settings.ts` and `settings.go`
 
-`config.ts` must export exactly three config types (with doc comments citing upstream sources):
+`settings.ts` must export exactly three config types (with doc comments citing upstream sources):
 
 - **`RootConfig`** — root-level (top-level datasource settings) fields only. If the plugin stores
   nothing at root, it is a **blank object** (`Record<string, never>`), never null.
@@ -101,7 +101,7 @@ Validate against `dsconfig/schema.json` (`$schema` is required and must be the c
 - **`SecureJsonDataConfig`** — an **array of secret key names**, not an object with secret values
   (secure values are write-only).
 
-`config.go` exports:
+`settings.go` exports:
 
 - **A flat `Config` struct** that mirrors the plugin's upstream backend `Settings`
   (`pkg/models/settings.go`) **verbatim** — same fields, same json tags, same custom
@@ -171,7 +171,7 @@ in the entry README so consumers understand what `LoadConfig` guarantees.
    - JSON Schema validation against `dsconfig/schema.json` (draft 2020-12, strict —
      `additionalProperties: false`);
    - `go build ./... && go vet ./... && gofmt -l . && go test ./...` in the entry module;
-   - `tsc --noEmit --strict` on `config.ts`;
+   - `tsc --noEmit --strict` on `settings.ts`;
    - the pre-existing `dsconfig` and `schema` workspace modules still build.
 
 ## Step 6 — Write the entry `README.md`
