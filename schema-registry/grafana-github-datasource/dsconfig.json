@@ -249,6 +249,49 @@
     ],
     "instructions": [
         {
+            "msg": "Two authentication methods are available, selected via jsonData.selectedAuthType: 'personal-access-token' (the default) and 'github-app'. Configure exactly one method; only the credentials belonging to the selected method are used by the backend.",
+            "tags": [
+                "llm",
+                "auth"
+            ]
+        },
+        {
+            "msg": "To configure Personal Access Token authentication, set jsonData.selectedAuthType to 'personal-access-token' and put the token in secureJsonData.accessToken. Minimal payload: {\"jsonData\":{\"selectedAuthType\":\"personal-access-token\"},\"secureJsonData\":{\"accessToken\":\"<token>\"}}. Use a fine grained personal access token with read-only repository permissions, including the 'Metadata' permission; no write or org-level permissions are needed.",
+            "tags": [
+                "llm",
+                "auth"
+            ]
+        },
+        {
+            "msg": "To configure GitHub App authentication, set jsonData.selectedAuthType to 'github-app', provide jsonData.appId and jsonData.installationId (numeric values, as JSON strings or numbers), and put the app's private key in secureJsonData.privateKey. Minimal payload: {\"jsonData\":{\"selectedAuthType\":\"github-app\",\"appId\":\"<app id>\",\"installationId\":\"<installation id>\"},\"secureJsonData\":{\"privateKey\":\"<PEM>\"}}. The private key must be the complete PEM text including the BEGIN/END lines (despite the editor placeholder showing '-----BEGIN CERTIFICATE-----', it is an RSA private key, not a certificate). All three values are mandatory: a missing or non-numeric appId/installationId makes the backend fail to load the datasource.",
+            "tags": [
+                "llm",
+                "auth"
+            ]
+        },
+        {
+            "msg": "For GitHub.com (Free, Pro & Team) and GitHub Enterprise Cloud, do NOT set jsonData.githubUrl — the API endpoints are the same and the backend treats any non-empty githubUrl as an on-prem Enterprise Server. Only set jsonData.githubUrl (together with jsonData.githubPlan='github-enterprise-server') for an on-prem GitHub Enterprise Server instance, e.g. {\"jsonData\":{\"githubPlan\":\"github-enterprise-server\",\"githubUrl\":\"https://github.example.com\"}}. Prefer omitting the trailing slash on githubUrl: the backend string-concatenates '/api/v3' and '/api/graphql' onto it.",
+            "tags": [
+                "llm",
+                "connection"
+            ]
+        },
+        {
+            "msg": "secureJsonData values (accessToken, privateKey) are write-only: they can be set or reset but never read back. To check whether a secret is already configured on an existing datasource, read the secureJsonFields object (e.g. secureJsonFields.accessToken == true) instead of secureJsonData.",
+            "tags": [
+                "llm",
+                "secure"
+            ]
+        },
+        {
+            "msg": "When updating an existing datasource, switching selectedAuthType does not clear the other method's fields or secrets; stale values are harmless but confusing. When switching away from 'github-enterprise-server', also clear jsonData.githubUrl to an empty string (the editor does this automatically), otherwise the datasource keeps behaving as Enterprise Server.",
+            "tags": [
+                "llm",
+                "auth",
+                "connection"
+            ]
+        },
+        {
             "msg": "The configuration editor renders no required-field markers (DataSourceDescription is rendered with hasRequiredFields=false); the requiredWhen rules in this schema encode the backend data contract instead.",
             "tags": [
                 "ui"
