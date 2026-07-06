@@ -1,0 +1,219 @@
+# Agent instructions: authoring datasource registry entries
+
+This file guides AI coding agents (Claude Code, GitHub Copilot, Cursor, etc.) working in this
+repository. Its primary workflow is **adding or updating a datasource configuration schema under
+`registry/<plugin_id>/`**. The instructions are agnostic of the datasource type — follow the
+same process for any Grafana datasource plugin. A complete worked example lives in
+[`registry/grafana-github-datasource/`](registry/grafana-github-datasource/).
+
+A Claude Code skill wrapping this workflow is available at
+[`.claude/skills/add-datasource-schema/SKILL.md`](.claude/skills/add-datasource-schema/SKILL.md).
+
+## Repository layout
+
+| Path | Purpose |
+| --- | --- |
+| `dsconfig/` | The dsconfig schema SDK: Go types (`schema.go`), validator, `baseFields` packs, dsconfig→SDK converter (`convert.go`), and the JSON Schema (`schema.json`) every `dsconfig.json` must satisfy |
+| `schema/` | Conformance test suite and artifact helpers plugins import |
+| `registry/` | Single Go module (`github.com/grafana/dsconfig/registry`) containing every plugin entry as a subpackage; owns `go.mod`/`go.sum` shared across all entries |
+| `registry/<plugin_id>/` | One entry per datasource plugin (Go subpackage of the `registry` module) — see structure below |
+| `go.work` | Workspace — includes `./dsconfig`, `./schema`, and `./registry` |
+
+## Registry entry structure
+
+Each entry is a subpackage of the single `registry` module (no per-entry `go.mod`):
+
+```
+registry/
+├── go.mod / go.sum         # module github.com/grafana/dsconfig/registry (shared)
+└── <plugin_id>/
+    ├── dsconfig.json       # dsconfig v1 schema — the single source of truth
+    ├── settings.ts         # TypeScript models: RootConfig, JsonDataConfig, SecureJsonDataConfig
+    ├── settings.go         # Flat Go Config (jsonData + DecryptedSecureJSONData; root fields only if used) + LoadConfig utility
+    ├── schema.go           # k8s-style SDK PluginSchema: embeds dsconfig.json + SettingsExamples
+    ├── schema_test.go      # Guards the schema bundle shape and LoadConfig behavior
+    └── README.md           # Research notes, field inventory, discrepancies, type provenance
+```
+
+Import path for an entry: `github.com/grafana/dsconfig/registry/<plugin_id>`.
+
+## Step 1 — Capture the inputs (research phase)
+
+**Proof-driven authoring is mandatory.** Every value that ends up in `dsconfig.json` — labels,
+placeholders, tooltips, descriptions, option labels/values, section titles, help text, value
+types, defaults, validations, required markers, visibility conditions, storage keys, storage
+targets — must be traceable to a specific file, line, and commit in the upstream plugin
+repository. Fidelity comes from reading the real sources at HEAD on `main`, never from memory,
+never from a stale local checkout, and never from a cached copy in your context window.
+
+1. **Resolve the plugin ID from upstream.** The authoritative plugin ID is the `id` field of
+   `src/plugin.json` in the upstream repository — not the repository name, not the npm package
+   name, not the Go module path. Read that file first and use its `id` verbatim as the registry
+   entry directory name and as `pluginType` in `dsconfig.json`. Also capture `name` (→ `pluginName`)
+   and `info.links[]` for the docs URL (→ `docURL`) from the same file.
+2. **Always fetch the latest `main` before reading anything.** Either:
+   - `git clone https://github.com/grafana/<repo> && cd <repo> && git checkout main && git pull`, or
+   - `git -C <existing-clone> fetch origin && git -C <existing-clone> checkout main && git -C <existing-clone> pull --ff-only`.
+
+   Record the commit SHA you researched against in the entry README so reviewers can reproduce
+   the work. If upstream moves after you author the schema, re-run the research at the new HEAD
+   and reconcile any drift before merging.
+3. **Read the real sources** (all paths relative to the upstream repo root):
+   - `src/plugin.json` — plugin ID, name, docs URL (already read in step 1).
+   - the config editor component (usually `src/**/ConfigEditor.tsx`) — every label, placeholder,
+     tooltip, option, section title, conditional render, and side-effecting change handler.
+   - the frontend config types (usually `src/types/settings.ts` or `src/types.ts`).
+   - the backend settings model (usually `pkg/models/settings.go`) and its `LoadSettings` —
+     legacy fallbacks, lenient parsing, defaulting.
+   - how each setting is **consumed** (HTTP client construction, URL derivation, auth wiring) —
+     this reveals frontend-only and backend-only fields.
+4. **Resolve external components.** Config editors compose components from libraries
+   (`@grafana/ui`, `@grafana/plugin-ui`, `@grafana/experimental`, SDK field packs). Pin the exact
+   versions from the plugin's `package.json`/`go.mod` and read those components' sources for their
+   labels, tooltips, and the storage keys they write. Never guess what a library component renders.
+5. **Inventory every storage field** across three targets: `root` (top-level datasource settings),
+   `jsonData`, and `secureJsonData`. Classify each field: editor-visible, frontend-only (written by
+   the editor, never read by the backend), backend-only (no editor UI), or virtual (editor-local
+   derived state that never hits storage). For each field, note the exact source line
+   (`file:line`) where its label, placeholder, tooltip, default, and storage key are defined.
+6. **Record discrepancies** you find upstream (dead settings, misleading placeholders, typos,
+   validation gaps, URL-handling quirks) — they go in the entry README, not in the schema.
+
+## Step 2 — Author `dsconfig.json`
+
+Validate against `dsconfig/schema.json` (`$schema` is required and must be the canonical URL).
+
+- **Exact fidelity**: labels, placeholders, tooltips, option labels/values, section titles, and
+  help text must match the config editor **verbatim — including upstream typos**. Do not invent
+  tooltips: set a field `description` only where the editor actually shows one; put supplementary
+  facts in `instructions` or the README.
+- **Field ID naming convention**: `<target>_<camelCaseKey>` — `root_`, `jsonData_`, or
+  `secureJsonData_` prefix matching the storage target (`virtual_` for virtual fields), e.g.
+  `jsonData_appId`, `secureJsonData_accessToken`. No dot notation. The `key` property keeps the
+  plugin's raw storage key.
+- **Virtual fields**: model editor-local derived selectors (React state, not storage) as
+  `kind: "virtual"` with a `storage.computed.read` expression for the load-time derivation and
+  `effects` declaring the multi-field writes each selection performs. Tag driven storage fields
+  `managed-by:<virtual_field_id>`.
+- **Conditionals**: `dependsOn` mirrors editor visibility (may reference virtual fields);
+  `requiredWhen` encodes the backend data contract (reference storage fields) even when the editor
+  shows no required markers.
+- **Groups**: mirror the editor's sections; the connection group comes first, then authentication,
+  then the rest. Collapsible sections get `optional: true`.
+- **Help drawers**: rich editor help (collapse panels, multi-step guidance) becomes the `help`
+  object of the most relevant field, with the markdown preserved verbatim.
+- **Roles**: apply roles from the closed vocabulary (`auth.discriminator`, `auth.bearer.token`,
+  `endpoint.baseUrl`, …) wherever a field's meaning matches; skip fields with no matching role.
+- **Exclusions**: do not include the Secure Socks Proxy field (`jsonData.enableSecureSocksProxy`)
+  in registry entries.
+- **Instructions**: maximum **6** entries, tagged (include `llm`), prioritizing crucial
+  authentication guidance over implementation/interpretation details. Must cover: available auth
+  methods and how to select one, a minimal JSON payload recipe per auth method (jsonData +
+  secureJsonData), legacy auth interpretation, write-only secure values (`secureJsonFields` for
+  read-side), and connection/URL rules with known pitfalls.
+
+## Step 3 — Author `settings.ts` and `settings.go`
+
+`settings.ts` must export exactly three config types (with doc comments citing upstream sources):
+
+- **`RootConfig`** — root-level (top-level datasource settings) fields only. If the plugin stores
+  nothing at root, it is a **blank object** (`Record<string, never>`), never null.
+- **`JsonDataConfig`** — all `jsonData` fields (including frontend-only and backend-only ones)
+  keyed by the raw storage names. Mark frontend-only/backend-only fields in comments.
+- **`SecureJsonDataConfig`** — an **array of secret key names**, not an object with secret values
+  (secure values are write-only).
+
+`settings.go` exports:
+
+- **A flat `Config` struct** that mirrors the plugin's upstream backend `Settings`
+  (`pkg/models/settings.go`) **verbatim** — same fields, same json tags, same custom
+  `UnmarshalJSON` if the upstream has one. Plus a `DecryptedSecureJSONData map[SecureJsonDataKey]string` for the
+  decrypted `secureJsonData`. **Only carry root-level datasource fields (`URL`, `BasicAuth`, `User`,
+  etc.) on `Config` when the plugin's own backend actually reads them.** Most datasources ignore
+  root fields entirely (e.g. GitHub authenticates via jsonData + secrets and never touches
+  `settings.URL`); in that case omit them. If the plugin does read root fields, add only the ones
+  it uses, tagged `json:"-"` to avoid jsonData collisions.
+- **`SecureJsonDataKey`** — a strict string-alias type with typed constants for every secret key
+  the plugin stores (`SecureJsonDataKeyAccessToken`, `SecureJsonDataKeyPrivateKey`, …), plus a
+  `SecureJsonDataConfig = []SecureJsonDataKey` list variable (e.g. `SecureJsonDataKeys`).
+- **`LoadConfig(ctx context.Context, settings backend.DataSourceInstanceSettings) (Config, error)`**
+  — runs the full three-phase load flow and returns a fully-defaulted, validated `Config`:
+  1. **Parse** — unmarshal `settings.JSONData` into `Config`, mirror the plugin's own
+     `LoadSettings` verbatim for parsing (legacy fallbacks, lenient string-or-number ID parsing,
+     conditional int64 conversions under specific auth modes), and copy decrypted secrets into
+     `DecryptedSecureJSONData`.
+  2. **ApplyDefaults** — call `(*Config).ApplyDefaults` on the parsed config.
+  3. **Validate** — call `(Config).Validate`; return its error if any.
+
+  Use `backend.Logger.FromContext(ctx)` for contextual logging on entry, on each error, and on
+  successful completion. Because this becomes the intended shape for the plugin's upstream
+  `LoadSettings` to sync to, treat any parse divergence from upstream as a bug in this entry.
+- **`(*Config).ApplyDefaults()`** — hard-coded editor-parity defaults for a **curated list** of
+  zero-valued fields only (e.g. discriminators like `selectedAuthType` and `githubPlan`). Keep
+  it exported so callers that assemble a `Config` directly can still get editor-parity. Never
+  blanket-apply every schema default — that would clobber intentional zero values.
+- **`(Config).Validate() error`** — checks the runtime contract that the plugin requires (auth
+  method + its required inputs, plan/URL consistency, …). Errors are joined so callers see
+  every problem at once. Keep it exported so callers can validate a `Config` they assembled
+  themselves.
+
+Even though `LoadConfig` calls both helpers internally, keep them exported as separate methods:
+callers that build a `Config` outside of `LoadConfig` (provisioning preview, tests that need to
+distinguish parse-level from policy-level errors, schema-example round-trip tools) still need
+to invoke them individually. Document the internal `parse → ApplyDefaults → Validate` sequence
+in the entry README so consumers understand what `LoadConfig` guarantees.
+- **Enum-like `string` types with constants** for discriminator fields (auth type, license/plan …),
+  mirroring the plugin's own constants where they exist.
+
+## Step 4 — Author `schema.go` (k8s-style SDK schema)
+
+- Embed `dsconfig.json` (`//go:embed`); expose `ConfigSchema()` (parse + resolve) and
+  `NewSchema()` via `dsconfig.NewSDKSchema` — this produces the `pluginschema.PluginSchema`
+  bundle (OpenAPI settings spec + `secureValues` + examples) Grafana's datasource API server
+  serves as `{apiVersion}.json`.
+- **`SettingsExamples()`**: one example per authentication type and connection variant, plus a
+  **default example keyed by the empty string `""`** capturing the schema defaults. Every example
+  value is a full instance-settings object: plugin config under `jsonData` **and the relevant
+  `secureJsonData` placeholder fields** (empty string in the default example; realistic
+  placeholders elsewhere — use the correct secret format, e.g. a proper PEM header for keys).
+- Include a legacy example if the plugin has a legacy storage shape.
+
+## Step 5 — Wire and validate
+
+The `registry/` module already exists; a new entry is just a new subdirectory. There is no
+per-entry `go.mod`, no `go.work` edit, and no `replace` directive to add.
+
+1. Create `registry/<plugin_id>/` with the files above (each entry is its own Go package —
+   package name is a language-safe form of the plugin ID, e.g. `githubdatasource` for
+   `grafana-github-datasource`).
+2. From `registry/`, run `go mod tidy` if the new entry pulled in new imports.
+3. `schema_test.go` must assert at minimum: `NewSchema()` succeeds; `secureJsonData` is **not** in
+   the settings spec; `secureValues` match the secure key list; every expected `jsonData` property
+   is in the spec; the `""` default example exists; every example has `jsonData` and a non-empty
+   `secureJsonData` using only known secret keys; `LoadConfig` handles each auth method, legacy
+   fallback, and malformed input.
+4. Full validation checklist (all must pass before committing):
+   - `dsconfig.ParseAndResolveSchemaJSON` + `Validate()` on `dsconfig.json`;
+   - JSON Schema validation against `dsconfig/schema.json` (draft 2020-12, strict —
+     `additionalProperties: false`);
+   - `go build ./... && go vet ./... && gofmt -l . && go test ./...` inside `registry/`;
+   - `tsc --noEmit --strict` on `settings.ts`;
+   - the pre-existing `dsconfig` and `schema` workspace modules still build.
+
+## Step 6 — Write the entry `README.md`
+
+Required sections: file table; sources researched (with exact library versions); field inventory
+table (schema ID, storage key, target, editor label, read-by-backend); frontend-only and
+backend-only settings; modeling decisions; **where the types are defined** (frontend and backend,
+including types that come from libraries/packages/SDKs rather than the plugin itself — list only
+config type/field definitions; omit UI components and functions/helpers even when they are the
+reason a field exists); settings examples matrix; potential upstream bugs/discrepancies; validation
+performed.
+
+## General guidelines
+
+- Never push to a branch other than the designated working branch; never create a PR unless asked.
+- Prefer small, reviewable commits with descriptive messages, one concern per commit.
+- When information conflicts between the editor UI and the backend, capture **both**: the editor
+  behavior in field presentation, the backend contract in validations/`requiredWhen`, and the
+  conflict itself in the README's discrepancies section.

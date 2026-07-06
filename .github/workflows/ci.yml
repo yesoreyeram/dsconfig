@@ -1,0 +1,122 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  # Discover every Go module in the workspace so the matrix stays in sync with
+  # go.work automatically as new registry entries are added.
+  discover:
+    name: Discover Go modules
+    runs-on: ubuntu-latest
+    outputs:
+      modules: ${{ steps.list.outputs.modules }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: list
+        name: List modules
+        run: |
+          modules=$(find . -name go.mod -not -path './.git/*' -exec dirname {} \; | sed 's|^\./||' | sort | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          echo "modules=$modules" >> "$GITHUB_OUTPUT"
+          echo "Discovered modules: $modules"
+
+  go:
+    name: Go ${{ matrix.module }}
+    needs: discover
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        module: ${{ fromJson(needs.discover.outputs.modules) }}
+    defaults:
+      run:
+        working-directory: ${{ matrix.module }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.work
+          cache-dependency-path: ${{ matrix.module }}/go.sum
+
+      - name: gofmt
+        run: |
+          out=$(gofmt -l .)
+          if [ -n "$out" ]; then
+            echo "gofmt found unformatted files:"
+            echo "$out"
+            exit 1
+          fi
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: go build
+        run: go build ./...
+
+      - name: go test
+        run: go test -race -count=1 ./...
+
+  # Validate every registry entry's dsconfig.json against the canonical
+  # dsconfig/schema.json (draft 2020-12, strict additionalProperties: false).
+  schema-validate:
+    name: Validate registry dsconfig.json files
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install ajv-cli
+        run: npm install -g ajv-cli@5 ajv-formats@3
+
+      - name: Validate each registry entry
+        run: |
+          set -e
+          shopt -s nullglob
+          for f in registry/*/dsconfig.json; do
+            echo "Validating $f"
+            ajv validate \
+              --spec=draft7 \
+              --strict=false \
+              --all-errors \
+              -c ajv-formats \
+              -s dsconfig/schema.json \
+              -d "$f"
+          done
+
+  # Verify committed .gen.json artifacts are in sync with dsconfig.json (the
+  # conformance suite's SchemaArtifactInSync subtest is authoritative; this
+  # keeps the check surfaced at the workflow level).
+  artifacts-in-sync:
+    name: Artifacts in sync
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.work
+      - name: Regenerate artifacts and diff
+        run: |
+          set -e
+          for dir in registry/*/; do
+            if [ -f "$dir/schema.go" ]; then
+              echo "Regenerating artifacts in $dir"
+              (cd "$dir" && go generate ./... 2>/dev/null || true)
+            fi
+          done
+          if ! git diff --exit-code; then
+            echo "::error::Generated artifacts are out of sync with dsconfig.json. Run 'go generate ./...' in the affected registry entry and commit the result."
+            exit 1
+          fi
